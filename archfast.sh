@@ -116,7 +116,7 @@ Please select your file system for both boot and root partitions:
             fi
             ;;
         *) echo "Invalid option. Please select again."; select_filesystem;;
-    esajc
+    esac
 }
 
 set_timezone() {
