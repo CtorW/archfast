@@ -394,8 +394,8 @@ chroot_configuration() {
             echo \"Installing NVIDIA drivers: nvidia-lts\"
             pacman -S --noconfirm --needed nvidia-lts
         elif echo \"${gpu_type}\" | grep 'VGA' | grep -E \"Radeon|AMD\"; then
-            echo \"Installing AMD drivers: xf86-video-amdgpu\"
-            pacman -S --noconfirm --needed xf86-video-amdgpu
+            echo \"Installing AMD drivers: mesa\"
+            pacman -S --noconfirm --needed mesa
         elif echo \"${gpu_type}\" | grep -E \"Intel Corporation|Integrated Graphics Controller|Intel Corporation UHD\"; then
             echo \"Installing Intel graphics drivers.\"
             pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
