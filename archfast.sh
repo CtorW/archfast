@@ -130,6 +130,25 @@ Please select your file system for both boot and root partitions:
     esac
 }
 
+select_hyprland_dots() {
+    echo -ne "
+Please select a Hyprland dotfiles configuration to install (or skip):
+"
+    local options=("End-4" "HyDE" "Hyprluna" "Caelestia" "Skip")
+    select_interactive_option "${options[@]}"
+    local choice=$?
+
+    case $choice in
+        0) export HYPR_DOTS="End-4"; export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland";;
+        1) export HYPR_DOTS="HyDE"; export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE";;
+        2) export HYPR_DOTS="Hyprluna"; export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna";;
+        3) export HYPR_DOTS="Caelestia"; export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia";;
+        4) export HYPR_DOTS="None";;
+        *) echo "Invalid option. Please select again."; select_hyprland_dots;;
+    esac
+    echo -ne "Hyprland dotfiles set to: ${HYPR_DOTS}\n"
+}
+
 set_timezone() {
     local detected_timezone=$(curl --fail --silent https://ipapi.co/timezone)
     echo -ne "
@@ -403,6 +422,12 @@ chroot_configuration() {
             echo \"No specific GPU detected, skipping graphics driver installation.\"
         fi
 
+        echo 'Installing Hyprland and dependencies...'
+        if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
+            pacman -S --noconfirm --needed hyprland wayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt5-wayland qt6-wayland
+            pacman -S --noconfirm --needed waybar hyprpaper dunst kitty rofi polkit-gnome pipewire pipewire-alsa pipewire-pulse pipewire-jack
+        fi
+
         echo 'Creating user account...'
         groupadd libvirt
         useradd -m -G wheel,libvirt -s /bin/bash ${USERNAME}
@@ -410,6 +435,14 @@ chroot_configuration() {
         echo \"${USERNAME}:${PASSWORD}\" | chpasswd
         echo \"Password set for ${USERNAME}.\"
         echo ${NAME_OF_MACHINE} > /etc/hostname
+
+        echo 'Installing selected Hyprland dotfiles...'
+        if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
+            echo \"Installing ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
+            git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles
+            chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
+            su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && ./install.sh || true\"
+        fi
 
         if [[ ${FS} == \"luks\" ]]; then
             echo 'Configuring mkinitcpio for LUKS encryption...'
@@ -437,6 +470,9 @@ chroot_configuration() {
         systemctl disable dhcpcd.service
         systemctl enable NetworkManager.service
         systemctl enable reflector.timer
+        if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
+            systemctl enable polkit.service
+        fi
 
         echo 'Finalizing user permissions...'
         sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
@@ -486,6 +522,10 @@ main() {
     clear
     display_section_header
     set_keymap
+
+    clear
+    display_section_header
+    select_hyprland_dots
 
     echo "--- System Preparation ---"
     timedatectl set-ntp true
