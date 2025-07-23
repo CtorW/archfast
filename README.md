@@ -64,8 +64,11 @@ chmod +x archfast.sh
 
 🔁 Reboot your system
 
-✨ Coming Soon: Hyprland with Dotfiles Integration! ✨
+# Hyprland Integration 
+[HyDE](https://github.com/HyDE-Project/HyDE)
 
-    Hyprland Preview
+[End-4](https://github.com/end-4/dots-hyprland)
 
-Stay tuned for more desktop environment options and enhanced customization!
+[Hyprluna](https://github.com/Lunaris-Project/HyprLuna)
+
+[Caelestia](https://github.com/caelestia-dots/caelestia)
