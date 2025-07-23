@@ -139,11 +139,11 @@ Please select a Hyprland dotfiles configuration to install (or skip):
     local choice=$?
 
     case $choice in
-        0) export HYPR_DOTS="End-4"; export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland";;
-        1) export HYPR_DOTS="HyDE"; export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE";;
-        2) export HYPR_DOTS="Hyprluna"; export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna";;
-        3) export HYPR_DOTS="Caelestia"; export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia";;
-        4) export HYPR_DOTS="None";;
+        0) export HYPR_DOTS="End-4"; export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"; export HYPR_INSTALL_SCRIPT="install.sh";;
+        1) export HYPR_DOTS="HyDE"; export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"; export HYPR_INSTALL_SCRIPT="HyDE/Scripts/install.sh";;
+        2) export HYPR_DOTS="Hyprluna"; export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna"; export HYPR_INSTALL_SCRIPT="installer.sh";;
+        3) export HYPR_DOTS="Caelestia"; export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia"; export HYPR_INSTALL_SCRIPT="install.fish";;
+        4) export HYPR_DOTS="None"; export HYPR_INSTALL_SCRIPT="";;
         *) echo "Invalid option. Please select again."; select_hyprland_dots;;
     esac
     echo -ne "Hyprland dotfiles set to: ${HYPR_DOTS}\n"
@@ -426,6 +426,9 @@ chroot_configuration() {
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
             pacman -S --noconfirm --needed hyprland wayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt5-wayland qt6-wayland
             pacman -S --noconfirm --needed waybar hyprpaper dunst kitty rofi polkit-gnome pipewire pipewire-alsa pipewire-pulse pipewire-jack
+            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
+                pacman -S --noconfirm --needed fish
+            fi
         fi
 
         echo 'Creating user account...'
@@ -441,7 +444,11 @@ chroot_configuration() {
             echo \"Installing ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
             git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
-            su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && ./install.sh || true\"
+            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
+                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && fish ./${HYPR_INSTALL_SCRIPT} || true\"
+            else
+                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && bash ./${HYPR_INSTALL_SCRIPT} || true\"
+            fi
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
