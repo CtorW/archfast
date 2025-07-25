@@ -435,21 +435,20 @@ chroot_configuration() {
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
             echo 'Pausing for manual dotfiles installation...'
             echo \"Switching to ${USERNAME}'s home directory and dotfiles folder for manual installation...\"
+            # Start a new chroot session for manual installation
             if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/fish\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/fish' && echo 'Manual installation completed, press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
-                su - ${USERNAME} -c \"cd ~/dotfiles/Script && /bin/bash\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles/Script && /bin/bash' && echo 'Manual installation completed, press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"End-4\" ]]; then
-                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/bash\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash' && echo 'Manual installation completed, press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"Hyprluna\" ]]; then
-                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/bash\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash' && echo 'Manual installation completed, press Enter to continue...' && read\"
             else
-                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/bash\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash' && echo 'Manual installation completed, press Enter to continue...' && read\"
             fi
             echo \"Please run ./\${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\"
             echo \"After completion, type 'exit' to return to root and continue the setup.\"
-            echo \"Press Enter to proceed...\"
-            read -r
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
