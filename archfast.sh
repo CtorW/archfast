@@ -431,21 +431,23 @@ chroot_configuration() {
         echo 'Installing selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
             echo \"Cloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
-            git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles
+            if ! git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles; then
+                echo \"Error: Failed to clone ${HYPR_DOTS} dotfiles. Aborting.\"
+                exit 1
+            fi
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
             echo 'Pausing for manual dotfiles installation...'
             echo \"Switching to ${USERNAME}'s home directory and dotfiles folder for manual installation...\"
-
             if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/fish -i' && echo 'Press Enter to continue after manual installation...' && read\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/fish -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles/Script && /bin/bash -i' && echo 'Press Enter to continue after manual installation...' && read\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles/Script && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"End-4\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Press Enter to continue after manual installation...' && read\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"Hyprluna\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Press Enter to continue after manual installation...' && read\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
             else
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Press Enter to continue after manual installation...' && read\"
+                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
             fi
             echo \"Please run ./\${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\"
             echo \"After completion, type 'exit' to return to root and continue the setup.\"
