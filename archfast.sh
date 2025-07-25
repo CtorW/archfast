@@ -135,7 +135,7 @@ select_hyprland_dots() {
 Please select a Hyprland dotfiles configuration to install (or skip):
 "
     local options=("End-4" "HyDE" "Hyprluna" "Caelestia" "Skip")
-    select_interactive_option "${options[@]}"]
+    select_interactive_option "${options[@]}"
     local choice=$?
 
     case $choice in
@@ -149,6 +149,22 @@ Please select a Hyprland dotfiles configuration to install (or skip):
     echo -ne "Hyprland dotfiles set to: ${HYPR_DOTS}\n"
 }
 
+select_shell() {
+    echo -ne "
+Please select the shell to use in the chroot environment:
+"
+    local options=("bash" "fish")
+    select_interactive_option "${options[@]}"
+    local choice=$?
+
+    case $choice in
+        0) export CHROOT_SHELL="/bin/bash"; export SHELL_NAME="bash";;
+        1) export CHROOT_SHELL="/usr/bin/fish"; export SHELL_NAME="fish";;
+        *) echo "Invalid option. Please select again."; select_shell;;
+    esac
+    echo -ne "Chroot shell set to: ${SHELL_NAME}\n"
+}
+
 set_timezone() {
     local detected_timezone=$(curl --fail --silent https://ipapi.co/timezone)
     echo -ne "
@@ -156,7 +172,7 @@ System detected your timezone as: '$detected_timezone'
 Is this correct?
 "
     local options=("Yes" "No")
-    select_interactive_option "${options[@]}"]
+    select_interactive_option "${options[@]}"
     local choice=$?
 
     case $choice in
@@ -176,7 +192,7 @@ set_keymap() {
 Select your keyboard layout from the list below:
 "
     local options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
-    select_interactive_option "${options[@]}"]
+    select_interactive_option "${options[@]}"
     export KEYMAP="${options[$?]}"
     echo -ne "Keyboard layout set to: ${KEYMAP}\n"
 }
@@ -186,7 +202,7 @@ choose_drive_type() {
 Is this an SSD (Solid State Drive)?
 "
     local options=("Yes" "No")
-    select_interactive_option "${options[@]}"]
+    select_interactive_option "${options[@]}"
     local choice=$?
 
     case $choice in
@@ -209,7 +225,7 @@ echo -ne "
     PS3='Select the disk to install Arch Linux on: '
     local options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}'))
 
-    select_interactive_option "${options[@]}"]
+    select_interactive_option "${options[@]}"
     local disk_choice=${options[$?]}
     export DISK="${disk_choice%|*}"
 
@@ -337,6 +353,9 @@ install_base_system() {
     if [[ -d "/sys/firmware/efi" ]]; then
         pacstrap_packages+=" efibootmgr"
     fi
+    if [[ "${SHELL_NAME}" == "fish" ]]; then
+        pacstrap_packages+=" fish"
+    fi
     pacstrap /mnt ${pacstrap_packages} --noconfirm --needed
 
     echo "Configuring mirrorlist and fstab..."
@@ -352,13 +371,13 @@ chroot_configuration() {
     local total_mem_kb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
     local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
 
-    arch-chroot /mnt /bin/bash -c "
+    arch-chroot /mnt ${CHROOT_SHELL} -c "
         echo 'Setting up network...'
         pacman -S --noconfirm --needed networkmanager dhcpcd
         systemctl enable NetworkManager
 
         echo 'Optimizing Pacman and system settings...'
-        pacman -S --noconfirm --needed pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget
+        pacman -S --noconfirm --needed pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget fish
         cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
         echo 'Configuring MAKEFLAGS for ${cpu_cores} cores and XZ compression...'
@@ -415,7 +434,7 @@ chroot_configuration() {
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
             pacman -S --noconfirm --needed hyprland wayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt5-wayland qt6-wayland
             pacman -S --noconfirm --needed waybar hyprpaper dunst kitty rofi polkit-gnome pipewire pipewire-alsa pipewire-pulse pipewire-jack
-            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
+            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" && \"${SHELL_NAME}\" != \"fish\" ]]; then
                 pacman -S --noconfirm --needed fish
             fi
         fi
@@ -439,7 +458,7 @@ chroot_configuration() {
             echo 'Pausing for manual dotfiles installation...'
             echo \"Switching to ${USERNAME}'s home directory and dotfiles folder for manual installation...\"
             if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/fish -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
+                arch-chroot /mnt /bin/fish -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/fish -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
                 arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles/Script && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
             elif [[ \"${HYPR_DOTS}\" == \"End-4\" ]]; then
@@ -536,6 +555,10 @@ main() {
     display_section_header
     select_hyprland_dots
 
+    clear
+    display_section_header
+    select_shell
+
     echo "--- System Preparation ---"
     timedatectl set-ntp true
     pacman -Sy
@@ -573,7 +596,7 @@ main() {
  ▓█   ▓██▒░██▓ ▒██▒▒ ▓███▀ ░░▓█▒░██▓░▒█░    ▓█   ▓██▒▒██████▒▒  ▒██▒ ░ 
  ▒▒   ▓▒█░░ ▒▓ ░▒▓░░ ░▒ ▒  ░ ▒ ░░▒░▒ ▒ ░    ▒▒   ▓▒█░▒ ▒▓▒ ▒ ░  ▒ ░░   
   ▒   ▒▒ ░  ░▒ ░ ▒░  ░  ▒    ▒ ░▒░ ░ ░       ▒   ▒▒ ░░ ░▒  ░ ░    ░    
-  ░   ▒     ░░   ░ ░         ░  ░░ ░ ░ ░     ░   ▒   ░  ░  ░    ░      
+  ░   ▒     ░e   ░ ░         ░  ░e ░ ░ ░     ░   ▒   ░  ░  ░    ░      
       ░  ░   ░     ░ ░       ░  ░  ░             ░  ░      ░           
                    ░                                                   
                              CTOR
