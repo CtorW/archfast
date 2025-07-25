@@ -437,11 +437,12 @@ chroot_configuration() {
             echo \"Please manually run the ${HYPR_DOTS} installation script as user ${USERNAME}: \"
             echo \"1. Run: su - ${USERNAME}\"
             echo \"2. Navigate to: cd ~/dotfiles\"
-            echo \"3. Execute: ${HYPR_INSTALL_SCRIPT} (use 'bash ${HYPR_INSTALL_SCRIPT}' or 'fish ${HYPR_INSTALL_SCRIPT}' depending on the script)\"
+            echo \"3. Execute: ./${HYPR_INSTALL_SCRIPT} (use 'bash' for .sh scripts or 'fish' for .fish scripts, e.g., 'bash install.sh' or 'fish install.fish')\"
             echo \"4. After completion, type 'exit' to return to root and continue the setup.\"
             echo \"Press Enter to proceed to the interactive shell...\"
             read -r
-            su - ${USERNAME}
+            # Start an interactive shell for the user to run the installation manually
+            su - ${USERNAME} -c /bin/bash
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
