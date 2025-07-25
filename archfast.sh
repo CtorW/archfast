@@ -430,11 +430,11 @@ chroot_configuration() {
 
         echo 'Installing selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
-            echo \"\033[32mCloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\033[0m\"
+            echo \"Cloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
             git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
-            echo '\033[32mPausing for manual dotfiles installation...\033[0m'
-            echo '\033[32mSwitching to ${USERNAME}\'s home directory and dotfiles folder for manual installation...\033[0m'
+            echo 'Pausing for manual dotfiles installation...'
+            echo \"Switching to ${USERNAME}'s home directory and dotfiles folder for manual installation...\"
             if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
                 su - ${USERNAME} -c \"cd ~/dotfiles && /bin/fish\"
             elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
@@ -446,9 +446,9 @@ chroot_configuration() {
             else
                 su - ${USERNAME} -c \"cd ~/dotfiles && /bin/bash\"
             fi
-            echo '\033[32mPlease run ./\${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\033[0m'
-            echo '\033[33mAfter completion, type \'exit\' to return to root and continue the setup.\033[0m'
-            echo '\033[33mPress Enter to proceed...\033[0m'
+            echo \"Please run ./\${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\"
+            echo \"After completion, type 'exit' to return to root and continue the setup.\"
+            echo \"Press Enter to proceed...\"
             read -r
         fi
 
