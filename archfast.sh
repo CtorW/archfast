@@ -430,19 +430,26 @@ chroot_configuration() {
 
         echo 'Installing selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
-            echo \"Cloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
+            echo \"\033[32mCloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\033[0m\"
             git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
-            echo 'Pausing for manual dotfiles installation...'
-            echo \"Please manually run the ${HYPR_DOTS} installation script as user ${USERNAME}: \"
-            echo \"1. Run: su - ${USERNAME}\"
-            echo \"2. Navigate to: cd ~/dotfiles\"
-            echo \"3. Execute: ./${HYPR_INSTALL_SCRIPT} (use 'bash' for .sh scripts or 'fish' for .fish scripts, e.g., 'bash install.sh' or 'fish install.fish')\"
-            echo \"4. After completion, type 'exit' to return to root and continue the setup.\"
-            echo \"Press Enter to proceed to the interactive shell...\"
+            echo '\033[32mPausing for manual dotfiles installation...\033[0m'
+            echo '\033[32mSwitching to ${USERNAME}\'s home directory and dotfiles folder for manual installation...\033[0m'
+            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
+                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/fish\"
+            elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
+                su - ${USERNAME} -c \"cd ~/dotfiles/Script && /bin/bash\"
+            elif [[ \"${HYPR_DOTS}\" == \"End-4\" ]]; then
+                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/bash\"
+            elif [[ \"${HYPR_DOTS}\" == \"Hyprluna\" ]]; then
+                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/bash\"
+            else
+                su - ${USERNAME} -c \"cd ~/dotfiles && /bin/bash\"
+            fi
+            echo '\033[32mPlease run ./\${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\033[0m'
+            echo '\033[33mAfter completion, type \'exit\' to return to root and continue the setup.\033[0m'
+            echo '\033[33mPress Enter to proceed...\033[0m'
             read -r
-            # Start an interactive shell for the user to run the installation manually
-            su - ${USERNAME} -c /bin/bash
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
