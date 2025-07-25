@@ -135,7 +135,7 @@ select_hyprland_dots() {
 Please select a Hyprland dotfiles configuration to install (or skip):
 "
     local options=("End-4" "HyDE" "Hyprluna" "Caelestia" "Skip")
-    select_interactive_option "${options[@]}"
+    select_interactive_option "${options[@]}"]
     local choice=$?
 
     case $choice in
@@ -156,7 +156,7 @@ System detected your timezone as: '$detected_timezone'
 Is this correct?
 "
     local options=("Yes" "No")
-    select_interactive_option "${options[@]}"
+    select_interactive_option "${options[@]}"]
     local choice=$?
 
     case $choice in
@@ -176,7 +176,7 @@ set_keymap() {
 Select your keyboard layout from the list below:
 "
     local options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
-    select_interactive_option "${options[@]}"
+    select_interactive_option "${options[@]}"]
     export KEYMAP="${options[$?]}"
     echo -ne "Keyboard layout set to: ${KEYMAP}\n"
 }
@@ -186,7 +186,7 @@ choose_drive_type() {
 Is this an SSD (Solid State Drive)?
 "
     local options=("Yes" "No")
-    select_interactive_option "${options[@]}"
+    select_interactive_option "${options[@]}"]
     local choice=$?
 
     case $choice in
@@ -209,7 +209,7 @@ echo -ne "
     PS3='Select the disk to install Arch Linux on: '
     local options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}'))
 
-    select_interactive_option "${options[@]}"
+    select_interactive_option "${options[@]}"]
     local disk_choice=${options[$?]}
     export DISK="${disk_choice%|*}"
 
@@ -430,14 +430,18 @@ chroot_configuration() {
 
         echo 'Installing selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
-            echo \"Installing ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
+            echo \"Cloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
             git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
-            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && fish ./${HYPR_INSTALL_SCRIPT} || true\"
-            else
-                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && bash ./${HYPR_INSTALL_SCRIPT} || true\"
-            fi
+            echo 'Pausing for manual dotfiles installation...'
+            echo \"Please manually run the ${HYPR_DOTS} installation script as user ${USERNAME}: \"
+            echo \"1. Run: su - ${USERNAME}\"
+            echo \"2. Navigate to: cd ~/dotfiles\"
+            echo \"3. Execute: ${HYPR_INSTALL_SCRIPT} (use 'bash ${HYPR_INSTALL_SCRIPT}' or 'fish ${HYPR_INSTALL_SCRIPT}' depending on the script)\"
+            echo \"4. After completion, type 'exit' to return to root and continue the setup.\"
+            echo \"Press Enter to proceed to the interactive shell...\"
+            read -r
+            su - ${USERNAME}
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
