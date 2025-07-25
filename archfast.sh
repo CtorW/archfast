@@ -371,13 +371,19 @@ chroot_configuration() {
     local total_mem_kb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
     local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
 
-    arch-chroot /mnt ${CHROOT_SHELL} -c "
+    arch-chroot /mnt /bin/bash -c "
+
         echo 'Setting up network...'
         pacman -S --noconfirm --needed networkmanager dhcpcd
         systemctl enable NetworkManager
 
         echo 'Optimizing Pacman and system settings...'
-        pacman -S --noconfirm --needed pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget fish
+        pacman -S --noconfirm --needed pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget
+        if [[ \"${SHELL_NAME}\" == \"fish\" ]]; then
+            pacman -S --noconfirm --needed fish
+            chsh -s /usr/bin/fish ${USERNAME}
+        fi
+        
         cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
         echo 'Configuring MAKEFLAGS for ${cpu_cores} cores and XZ compression...'
@@ -434,9 +440,6 @@ chroot_configuration() {
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
             pacman -S --noconfirm --needed hyprland wayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt5-wayland qt6-wayland
             pacman -S --noconfirm --needed waybar hyprpaper dunst kitty rofi polkit-gnome pipewire pipewire-alsa pipewire-pulse pipewire-jack
-            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" && \"${SHELL_NAME}\" != \"fish\" ]]; then
-                pacman -S --noconfirm --needed fish
-            fi
         fi
 
         echo 'Creating user account...'
@@ -457,18 +460,21 @@ chroot_configuration() {
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
             echo 'Pausing for manual dotfiles installation...'
             echo \"Switching to ${USERNAME}'s home directory and dotfiles folder for manual installation...\"
+            
             if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                arch-chroot /mnt /bin/fish -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/fish -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
+                su - ${USERNAME} -c 'cd ~/dotfiles && /usr/bin/fish -i'
             elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles/Script && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
+                su - ${USERNAME} -c 'cd ~/dotfiles/Script && /bin/bash -i'
             elif [[ \"${HYPR_DOTS}\" == \"End-4\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
+                su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i'
             elif [[ \"${HYPR_DOTS}\" == \"Hyprluna\" ]]; then
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
+                su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i'
             else
-                arch-chroot /mnt /bin/bash -c \"su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i' && echo 'Manual installation completed. Press Enter to continue...' && read\"
+                su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i'
             fi
-            echo \"Please run ./\${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\"
+            echo 'Manual installation completed. Press Enter to continue...'
+            read -p \"\"
+            echo \"Please run ./${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\"
             echo \"After completion, type 'exit' to return to root and continue the setup.\"
         fi
 
