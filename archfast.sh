@@ -9,7 +9,6 @@ echo -ne "
            / /| | / /_/ / /   / /_/ / /_  / /| | \__ \ / /   
           / ___ |/ _, _/ /___/ __  / __/ / ___ |___/ // /    
          /_/  |_/_/ |_|\____/_/ /_/_/   /_/  |_/____//_/     
-                                                    
                                CTOR
 -------------------------------------------------------------------------
             Automated Arch Linux Setup - Initializing
@@ -84,7 +83,6 @@ echo -ne "
            / /| | / /_/ / /   / /_/ / /_  / /| | \__ \ / /   
           / ___ |/ _, _/ /___/ __  / __/ / ___ |___/ // /    
          /_/  |_/_/ |_|\____/_/ /_/_/   /_/  |_/____//_/     
-                                                    
 ------------------------------------------------------------------------
             Setup Configuration: Choose your preferences
 ------------------------------------------------------------------------
@@ -503,7 +501,7 @@ chroot_configuration() {
 
         echo 'Generating GRUB configuration...'
         if [[ \"${FS}\" == \"luks\" ]]; then
-            sed -i \"s%GRUB_CMDLINE_LINUX_DEFAULT=\\\"%GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=/dev/mapper/cryptroot %g\" /etc/default/grub
+            sed -i \"s/GRUB_CMDLINE_LINUX_DEFAULT=\\\"/GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=\/dev\/mapper\/cryptroot /g\" /etc/default/grub
         fi
         sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"[^\\\"]*/& splash /' /etc/default/grub
         grub-mkconfig -o /boot/grub/grub.cfg
@@ -611,7 +609,7 @@ main() {
            / /| | / /_/ / /   / /_/ / /_  / /| | \__ \ / /   
           / ___ |/ _, _/ /___/ __  / __/ / ___ |___/ // /    
          /_/  |_/_/ |_|\____/_/ /_/_/   /_/  |_/____//_/     
-                                                    
+                                                           
                                CTOR
 -------------------------------------------------------------------------
             Arch Linux Installation Complete! 🎉
