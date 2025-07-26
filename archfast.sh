@@ -493,16 +493,38 @@ chroot_configuration() {
                     exit 1
                 fi
                 chown -R ${USERNAME}:${USERNAME} ${HYPR_DOTS_DIR}
+                echo \"\"
+                echo \"==================================================\"
+                echo \" Manual Dotfiles Installation Required for ${HYPR_DOTS} \"
+                echo \"==================================================\"
+                echo \"You will now be switched to user '${USERNAME}' inside the dotfiles directory.\"
+                echo \"Please run the installation command: \"
+                echo \"  -> ${HYPR_INSTALL_COMMAND}\"
+                echo \"After the installation is complete, type 'exit' to return to the main setup.\"
+                echo \"Press Enter to continue to dotfiles installation...\"
+                read -p \"\"
+                
+                su - ${USERNAME} -c "cd ${HYPR_DOTS_DIR} && ${SHELL_NAME:-/bin/bash} -i"
+
+                echo \"Manual dotfiles installation completed. Continuing main Arch setup...\"
             elif [[ \"${HYPR_DOTS_URL}\" == *\"hyprluna.org\"* ]]; then
-                echo \"Executing Hyprluna's curl install command...\"
+                echo \"\"
+                echo \"==================================================\"
+                echo \" Manual Dotfiles Installation Required for Hyprluna \"
+                echo \"==================================================\"
+                echo \"You will now be switched to user '${USERNAME}'.\"
+                echo \"Please run the installation command: \"
+                echo \"  -> ${HYPR_INSTALL_COMMAND}\"
+                echo \"After the installation is complete, type 'exit' to return to the main setup.\"
+                echo \"Press Enter to continue to dotfiles installation...\"
+                read -p \"\"
+
+                su - ${USERNAME} -c "${SHELL_NAME:-/bin/bash} -i"
+
+                echo \"Manual dotfiles installation completed. Continuing main Arch setup...\"
             else
-                echo \"Warning: Unknown dotfiles URL type. Skipping cloning.\"
+                echo \"Warning: Unknown dotfiles URL type. Skipping cloning/installation.\"
             fi
-
-            echo \"Executing ${HYPR_DOTS} dotfiles installation command as ${USERNAME}: ${HYPR_INSTALL_COMMAND}\"
-            su - ${USERNAME} -c \"${HYPR_INSTALL_COMMAND}\"
-
-            echo \"Dotfiles installation command completed. Continuing main Arch setup...\"
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
@@ -520,7 +542,7 @@ chroot_configuration() {
 
         echo 'Generating GRUB configuration...'
         if [[ \"${FS}\" == \"luks\" ]]; then
-            sed -i \"s%GRUB_CMDLINE_LINUX_DEFAULT=\\\"%GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=/dev/mapper/cryptroot %g\" /etc/default/grub
+            sed -i \"s%GRUB_CMDLINE_LINUX_DEFAULT=\\\"%GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTLINE_LINUX_DEFAULT}=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=/dev/mapper/cryptroot %g\" /etc/default/grub
         fi
         sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"[^\\\"]*/& splash /' /etc/default/grub
         grub-mkconfig -o /boot/grub/grub.cfg
