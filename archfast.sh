@@ -139,12 +139,40 @@ Please select a Hyprland dotfiles configuration to install (or skip):
     local choice=$?
 
     case $choice in
-        0) export HYPR_DOTS="End-4"; export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"; export HYPR_INSTALL_SCRIPT="install.sh";;
-        1) export HYPR_DOTS="HyDE"; export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"; export HYPR_INSTALL_SCRIPT="HyDE/Scripts/install.sh";;
-        2) export HYPR_DOTS="Hyprluna"; export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna"; export HYPR_INSTALL_SCRIPT="installer.sh";;
-        3) export HYPR_DOTS="Caelestia"; export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia"; export HYPR_INSTALL_SCRIPT="install.fish";;
-        4) export HYPR_DOTS="None"; export HYPR_INSTALL_SCRIPT="";;
-        *) echo "Invalid option. Please select again."; select_hyprland_dots;;
+        0)
+            export HYPR_DOTS="End-4"
+            export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/dots-hyprland"
+            export HYPR_INSTALL_COMMAND="cd ~/dots-hyprland && ./install.sh"
+            ;;
+        1)
+            export HYPR_DOTS="HyDE"
+            export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/HyDE"
+            export HYPR_INSTALL_COMMAND="cd ~/HyDE/Scripts && ./install.sh"
+            ;;
+        2)
+            export HYPR_DOTS="Hyprluna"
+            export HYPR_DOTS_URL="https://hyprluna.org/install"
+            export HYPR_DOTS_DIR=""
+            export HYPR_INSTALL_COMMAND="curl -sL ${HYPR_DOTS_URL} | bash"
+            ;;
+        3)
+            export HYPR_DOTS="Caelestia"
+            export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia.git"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/.local/share/caelestia"
+            export HYPR_INSTALL_COMMAND="cd ~/.local/share/caelestia && ./install.fish --noconfirm --spotify --vscode=code --discord --zen"
+            ;;
+        4)
+            export HYPR_DOTS="None"
+            export HYPR_DOTS_URL=""
+            export HYPR_DOTS_DIR=""
+            export HYPR_INSTALL_COMMAND=""
+            ;;
+        *)
+            echo "Invalid option. Please select again."
+            select_hyprland_dots
+            ;;
     esac
     echo -ne "Hyprland dotfiles set to: ${HYPR_DOTS}\n"
 }
@@ -440,6 +468,9 @@ chroot_configuration() {
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
             pacman -S --noconfirm --needed hyprland wayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt5-wayland qt6-wayland
             pacman -S --noconfirm --needed waybar hyprpaper dunst kitty rofi polkit-gnome pipewire pipewire-alsa pipewire-pulse pipewire-jack
+            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" && \"${SHELL_NAME}\" != \"fish\" ]]; then
+                pacman -S --noconfirm --needed fish
+            fi
         fi
 
         echo 'Creating user account...'
@@ -452,30 +483,26 @@ chroot_configuration() {
 
         echo 'Installing selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
-            echo \"Cloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}...\"
-            if ! git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/dotfiles; then
-                echo \"Error: Failed to clone ${HYPR_DOTS} dotfiles. Aborting.\"
-                exit 1
-            fi
-            chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
-            
-           
-            echo \"Executing ${HYPR_DOTS} dotfiles installation script: /home/${USERNAME}/dotfiles/${HYPR_INSTALL_SCRIPT}\"
-           
-            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /usr/bin/fish -C \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
-            elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
-                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles/HyDE/Scripts && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
-            elif [[ \"${HYPR_DOTS}\" == \"End-4\" ]]; then
-                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
-            elif [[ \"${HYPR_DOTS}\" == \"Hyprluna\" ]]; then
-                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
+            if [[ \"${HYPR_DOTS_URL}\" == *\"github.com\"* ]]; then
+                echo \"Cloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${HYPR_DOTS_DIR}...\"
+                if [[ \"${HYPR_DOTS_DIR}\" == *\"/.local/share/caelestia\"* ]]; then
+                    mkdir -p /home/${USERNAME}/.local/share
+                fi
+                if ! git clone --depth 1 ${HYPR_DOTS_URL} ${HYPR_DOTS_DIR}; then
+                    echo \"Error: Failed to clone ${HYPR_DOTS} dotfiles. Aborting.\"
+                    exit 1
+                fi
+                chown -R ${USERNAME}:${USERNAME} ${HYPR_DOTS_DIR}
+            elif [[ \"${HYPR_DOTS_URL}\" == *\"hyprluna.org\"* ]]; then
+                echo \"Executing Hyprluna's curl install command...\"
             else
-             
-                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
+                echo \"Warning: Unknown dotfiles URL type. Skipping cloning.\"
             fi
 
-            echo \"Dotfiles installation script completed. Continuing main Arch setup...\"
+            echo \"Executing ${HYPR_DOTS} dotfiles installation command as ${USERNAME}: ${HYPR_INSTALL_COMMAND}\"
+            su - ${USERNAME} -c \"${HYPR_INSTALL_COMMAND}\"
+
+            echo \"Dotfiles installation command completed. Continuing main Arch setup...\"
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
