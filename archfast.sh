@@ -386,7 +386,7 @@ chroot_configuration() {
     local total_mem_kb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
     local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
 
-    arch-chroot /mnt pacman -S --noconfirm --needed networkmanager dhcpcd pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget
+    arch-chroot /mnt pacman -S --noconfirm --needed networkmanager dhcpcd pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget fish
     
     if [[ "${SHELL_NAME}" == "fish" ]]; then
         arch-chroot /mnt pacman -S --noconfirm --needed fish
