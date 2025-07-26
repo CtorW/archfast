@@ -458,24 +458,24 @@ chroot_configuration() {
                 exit 1
             fi
             chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/dotfiles
-            echo 'Pausing for manual dotfiles installation...'
-            echo \"Switching to ${USERNAME}'s home directory and dotfiles folder for manual installation...\"
             
+           
+            echo \"Executing ${HYPR_DOTS} dotfiles installation script: /home/${USERNAME}/dotfiles/${HYPR_INSTALL_SCRIPT}\"
+           
             if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                su - ${USERNAME} -c 'cd ~/dotfiles && /usr/bin/fish -i'
+                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /usr/bin/fish -C \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
             elif [[ \"${HYPR_DOTS}\" == \"HyDE\" ]]; then
-                su - ${USERNAME} -c 'cd ~/dotfiles/Script && /bin/bash -i'
+                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles/HyDE/Scripts && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
             elif [[ \"${HYPR_DOTS}\" == \"End-4\" ]]; then
-                su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i'
+                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
             elif [[ \"${HYPR_DOTS}\" == \"Hyprluna\" ]]; then
-                su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i'
+                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
             else
-                su - ${USERNAME} -c 'cd ~/dotfiles && /bin/bash -i'
+             
+                su - ${USERNAME} -c \"cd /home/${USERNAME}/dotfiles && /bin/bash -c \\\"./${HYPR_INSTALL_SCRIPT}\\\"\"
             fi
-            echo 'Manual installation completed. Press Enter to continue...'
-            read -p \"\"
-            echo \"Please run ./${HYPR_INSTALL_SCRIPT} manually (e.g., ./install.fish for Caelestia, ./install.sh for End-4, ./installer.sh for Hyprluna, or ./install.sh for HyDE).\"
-            echo \"After completion, type 'exit' to return to root and continue the setup.\"
+
+            echo \"Dotfiles installation script completed. Continuing main Arch setup...\"
         fi
 
         if [[ ${FS} == \"luks\" ]]; then
