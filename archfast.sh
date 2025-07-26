@@ -4,19 +4,15 @@ exec > >(tee -i archsetup.log) 2>&1
 
 echo -ne "
 -------------------------------------------------------------------------
- ▄▄▄       ██▀███   ▄████▄   ██░ ██   █████▒▄▄▄        ██████ ▄▄▄█████▓
-▒████▄    ▓██ ▒ ██▒▒██▀ ▀█  ▓██░ ██▒▓██   ▒▒████▄    ▒██    ▒ ▓  ██▒ ▓▒
-▒██  ▀█▄  ▓██ ░▄█ ▒▒▓█    ▄ ▒██▀▀██░▒████ ░▒██  ▀█▄  ░ ▓██▄   ▒ ▓██░ ▒░
-░██▄▄▄▄██ ▒██▀▀█▄  ▒▓▓▄ ▄██▒░▓█ ░██ ░▓█▒  ░░██▄▄▄▄██   ▒   ██▒░ ▓██▓ ░ 
- ▓█   ▓██▒░██▓ ▒██▒▒ ▓███▀ ░░▓█▒░██▓░▒█░    ▓█   ▓██▒▒██████▒▒  ▒██▒ ░ 
- ▒▒   ▓▒█░░ ▒▓ ░▒▓░░ ░▒ ▒  ░ ▒ ░░▒░▒ ▒ ░    ▒▒   ▓▒█░▒ ▒▓▒ ▒ ░  ▒ ░░   
-  ▒   ▒▒ ░  ░▒ ░ ▒░  ░  ▒    ▒ ░▒░ ░ ░       ▒   ▒▒ ░░ ░▒  ░ ░    ░    
-  ░   ▒     ░░   ░ ░         ░  ░░ ░ ░ ░     ░   ▒   ░  ░  ░    ░      
-      ░  ░   ░     ░ ░       ░  ░  ░             ░  ░      ░           
-                   ░                                                   
-                             CTOR
+             ___    ____  ________  ___________   ___________
+            /   |  / __ \/ ____/ / / / ____/   | / ___/_  __/
+           / /| | / /_/ / /   / /_/ / /_  / /| | \__ \ / /   
+          / ___ |/ _, _/ /___/ __  / __/ / ___ |___/ // /    
+         /_/  |_/_/ |_|\____/_/ /_/_/   /_/  |_/____//_/     
+                                                    
+                               CTOR
 -------------------------------------------------------------------------
-           Automated Arch Linux Setup - Initializing
+            Automated Arch Linux Setup - Initializing
 -------------------------------------------------------------------------
 
 Verifying Arch Linux ISO environment...
@@ -83,18 +79,14 @@ select_interactive_option() {
 display_section_header() {
 echo -ne "
 -------------------------------------------------------------------------
- ▄▄▄       ██▀███   ▄████▄   ██░ ██   █████▒▄▄▄        ██████ ▄▄▄█████▓
-▒████▄    ▓██ ▒ ██▒▒██▀ ▀█  ▓██░ ██▒▓██   ▒▒████▄    ▒██    ▒ ▓  ██▒ ▓▒
-▒██  ▀█▄  ▓██ ░▄█ ▒▒▓█    ▄ ▒██▀▀██░▒████ ░▒██  ▀█▄  ░ ▓██▄   ▒ ▓██░ ▒░
-░██▄▄▄▄██ ▒██▀▀█▄  ▒▓▓▄ ▄██▒░▓█ ░██ ░▓█▒  ░░██▄▄▄▄██   ▒   ██▒░ ▓██▓ ░ 
- ▓█   ▓██▒░██▓ ▒██▒▒ ▓███▀ ░░▓█▒░██▓░▒█░    ▓█   ▓██▒▒██████▒▒  ▒██▒ ░ 
- ▒▒   ▓▒█░░ ▒▓ ░▒▓░░ ░▒ ▒  ░ ▒ ░░▒░▒ ▒ ░    ▒▒   ▓▒█░▒ ▒▓▒ ▒ ░  ▒ ░░   
-  ▒   ▒▒ ░  ░▒ ░ ▒░  ░  ▒    ▒ ░▒░ ░ ░       ▒   ▒▒ ░░ ░▒  ░ ░    ░    
-  ░   ▒     ░░   ░ ░         ░  ░░ ░ ░ ░     ░   ▒   ░  ░  ░    ░      
-      ░  ░   ░     ░ ░       ░  ░  ░             ░  ░      ░           
-                   ░                                                   
+             ___    ____  ________  ___________   ___________
+            /   |  / __ \/ ____/ / / / ____/   | / ___/_  __/
+           / /| | / /_/ / /   / /_/ / /_  / /| | \__ \ / /   
+          / ___ |/ _, _/ /___/ __  / __/ / ___ |___/ // /    
+         /_/  |_/_/ |_|\____/_/ /_/_/   /_/  |_/____//_/     
+                                                    
 ------------------------------------------------------------------------
-           Setup Configuration: Choose your preferences
+            Setup Configuration: Choose your preferences
 ------------------------------------------------------------------------
 "
 }
@@ -142,20 +134,20 @@ Please select a Hyprland dotfiles configuration to install (or skip):
         0)
             export HYPR_DOTS="End-4"
             export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/dots-hyprland"
-            export HYPR_INSTALL_COMMAND="cd ~/dots-hyprland && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/dots-hyprland"
+            export HYPR_INSTALL_COMMAND="cd ~/Downloads/dots-hyprland && ./install.sh"
             ;;
         1)
             export HYPR_DOTS="HyDE"
             export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/HyDE"
-            export HYPR_INSTALL_COMMAND="cd ~/HyDE/Scripts && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyDE"
+            export HYPR_INSTALL_COMMAND="cd ~/Downloads/HyDE/Scripts && ./install.sh"
             ;;
         2)
             export HYPR_DOTS="Hyprluna"
-            export HYPR_DOTS_URL="https://hyprluna.org/install"
-            export HYPR_DOTS_DIR=""
-            export HYPR_INSTALL_COMMAND="curl -sL ${HYPR_DOTS_URL} | bash"
+            export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyprLuna"
+            export HYPR_INSTALL_COMMAND="cd ~/Downloads/HyprLuna && ./install.sh"
             ;;
         3)
             export HYPR_DOTS="Caelestia"
@@ -243,7 +235,7 @@ Is this an SSD (Solid State Drive)?
 select_disk() {
 echo -ne "
 ------------------------------------------------------------------------
-           *** CRITICAL WARNING: DISK SELECTION ***
+    *** CRITICAL WARNING: DISK SELECTION ***
   This process will FORMAT and DELETE ALL DATA on the selected disk.
   Ensure you have backed up any important data.
   I AM NOT RESPONSIBLE FOR ANY DATA LOSS. Proceed with caution!
@@ -381,9 +373,6 @@ install_base_system() {
     if [[ -d "/sys/firmware/efi" ]]; then
         pacstrap_packages+=" efibootmgr"
     fi
-    if [[ "${SHELL_NAME}" == "fish" ]]; then
-        pacstrap_packages+=" fish"
-    fi
     pacstrap /mnt ${pacstrap_packages} --noconfirm --needed
 
     echo "Configuring mirrorlist and fstab..."
@@ -399,19 +388,19 @@ chroot_configuration() {
     local total_mem_kb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
     local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
 
+    arch-chroot /mnt pacman -S --noconfirm --needed networkmanager dhcpcd pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget
+    
+    if [[ "${SHELL_NAME}" == "fish" ]]; then
+        arch-chroot /mnt pacman -S --noconfirm --needed fish
+        arch-chroot /mnt chsh -s /usr/bin/fish ${USERNAME}
+    fi
+
     arch-chroot /mnt /bin/bash -c "
 
         echo 'Setting up network...'
-        pacman -S --noconfirm --needed networkmanager dhcpcd
         systemctl enable NetworkManager
 
         echo 'Optimizing Pacman and system settings...'
-        pacman -S --noconfirm --needed pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget
-        if [[ \"${SHELL_NAME}\" == \"fish\" ]]; then
-            pacman -S --noconfirm --needed fish
-            chsh -s /usr/bin/fish ${USERNAME}
-        fi
-        
         cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
         echo 'Configuring MAKEFLAGS for ${cpu_cores} cores and XZ compression...'
@@ -468,9 +457,6 @@ chroot_configuration() {
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
             pacman -S --noconfirm --needed hyprland wayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt5-wayland qt6-wayland
             pacman -S --noconfirm --needed waybar hyprpaper dunst kitty rofi polkit-gnome pipewire pipewire-alsa pipewire-pulse pipewire-jack
-            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" && \"${SHELL_NAME}\" != \"fish\" ]]; then
-                pacman -S --noconfirm --needed fish
-            fi
         fi
 
         echo 'Creating user account...'
@@ -481,49 +467,24 @@ chroot_configuration() {
         echo \"Password set for ${USERNAME}.\"
         echo ${NAME_OF_MACHINE} > /etc/hostname
 
-        echo 'Installing selected Hyprland dotfiles...'
+        echo 'Downloading selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
-            if [[ \"${HYPR_DOTS_URL}\" == *\"github.com\"* ]]; then
-                echo \"Cloning ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${HYPR_DOTS_DIR}...\"
-                if [[ \"${HYPR_DOTS_DIR}\" == *\"/.local/share/caelestia\"* ]]; then
-                    mkdir -p /home/${USERNAME}/.local/share
+            mkdir -p /home/${USERNAME}/Downloads
+            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
+                mkdir -p /home/${USERNAME}/.local/share
+                if ! git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/.local/share/caelestia; then
+                    echo \"Error: Failed to clone Caelestia dotfiles. Aborting.\"
+                    exit 1
                 fi
+                chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local/share/caelestia
+                echo \"Caelestia dotfiles downloaded to ~/.local/share/caelestia.\"
+            else
                 if ! git clone --depth 1 ${HYPR_DOTS_URL} ${HYPR_DOTS_DIR}; then
                     echo \"Error: Failed to clone ${HYPR_DOTS} dotfiles. Aborting.\"
                     exit 1
                 fi
                 chown -R ${USERNAME}:${USERNAME} ${HYPR_DOTS_DIR}
-                echo \"\"
-                echo \"==================================================\"
-                echo \" Manual Dotfiles Installation Required for ${HYPR_DOTS} \"
-                echo \"==================================================\"
-                echo \"You will now be switched to user '${USERNAME}' inside the dotfiles directory.\"
-                echo \"Please run the installation command: \"
-                echo \"  -> ${HYPR_INSTALL_COMMAND}\"
-                echo \"After the installation is complete, type 'exit' to return to the main setup.\"
-                echo \"Press Enter to continue to dotfiles installation...\"
-                read -p \"\"
-                
-                su - ${USERNAME} -c "cd ${HYPR_DOTS_DIR} && ${SHELL_NAME:-/bin/bash} -i"
-
-                echo \"Manual dotfiles installation completed. Continuing main Arch setup...\"
-            elif [[ \"${HYPR_DOTS_URL}\" == *\"hyprluna.org\"* ]]; then
-                echo \"\"
-                echo \"==================================================\"
-                echo \" Manual Dotfiles Installation Required for Hyprluna \"
-                echo \"==================================================\"
-                echo \"You will now be switched to user '${USERNAME}'.\"
-                echo \"Please run the installation command: \"
-                echo \"  -> ${HYPR_INSTALL_COMMAND}\"
-                echo \"After the installation is complete, type 'exit' to return to the main setup.\"
-                echo \"Press Enter to continue to dotfiles installation...\"
-                read -p \"\"
-
-                su - ${USERNAME} -c "${SHELL_NAME:-/bin/bash} -i"
-
-                echo \"Manual dotfiles installation completed. Continuing main Arch setup...\"
-            else
-                echo \"Warning: Unknown dotfiles URL type. Skipping cloning/installation.\"
+                echo \"${HYPR_DOTS} dotfiles downloaded to ${HYPR_DOTS_DIR}.\"
             fi
         fi
 
@@ -542,7 +503,7 @@ chroot_configuration() {
 
         echo 'Generating GRUB configuration...'
         if [[ \"${FS}\" == \"luks\" ]]; then
-            sed -i \"s%GRUB_CMDLINE_LINUX_DEFAULT=\\\"%GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTLINE_LINUX_DEFAULT}=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=/dev/mapper/cryptroot %g\" /etc/default/grub
+            sed -i \"s%GRUB_CMDLINE_LINUX_DEFAULT=\\\"%GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=/dev/mapper/cryptroot %g\" /etc/default/grub
         fi
         sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"[^\\\"]*/& splash /' /etc/default/grub
         grub-mkconfig -o /boot/grub/grub.cfg
@@ -558,14 +519,12 @@ chroot_configuration() {
         fi
 
         echo 'Finalizing user permissions...'
-        sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-        sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
     "
 }
 
 create_swap_if_needed() {
-    local total_mem_mb=$(( TOTAL_MEM / 1024 ))
-    if [[ $total_mem_mb -lt 8192 ]]; then
+    local total_mem_mb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2 / 1024}')
+    if (( $(echo "$total_mem_mb < 8192" | bc -l) )); then
         echo "System memory is ${total_mem_mb}MB (<8GB). Creating 2GB swap file."
         mkdir -p /mnt/opt/swap
         if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
@@ -642,30 +601,53 @@ main() {
     echo "--- Configuring Installed System (chroot) ---"
     chroot_configuration
 
+    echo "Unmounting partitions..."
+    umount -R /mnt
+
     echo -ne "
 -------------------------------------------------------------------------
- ▄▄▄       ██▀███   ▄████▄   ██░ ██   █████▒▄▄▄        ██████ ▄▄▄█████▓
-▒████▄    ▓██ ▒ ██▒▒██▀ ▀█  ▓██░ ██▒▓██   ▒▒████▄    ▒██    ▒ ▓  ██▒ ▓▒
-▒██  ▀█▄  ▓██ ░▄█ ▒▒▓█    ▄ ▒██▀▀██░▒████ ░▒██  ▀█▄  ░ ▓██▄   ▒ ▓██░ ▒░
-░██▄▄▄▄██ ▒██▀▀█▄  ▒▓▓▄ ▄██▒░▓█ ░██ ░▓█▒  ░░██▄▄▄▄██   ▒   ██▒░ ▓██▓ ░ 
- ▓█   ▓██▒░██▓ ▒██▒▒ ▓███▀ ░░▓█▒░██▓░▒█░    ▓█   ▓██▒▒██████▒▒  ▒██▒ ░ 
- ▒▒   ▓▒█░░ ▒▓ ░▒▓░░ ░▒ ▒  ░ ▒ ░░▒░▒ ▒ ░    ▒▒   ▓▒█░▒ ▒▓▒ ▒ ░  ▒ ░░   
-  ▒   ▒▒ ░  ░▒ ░ ▒░  ░  ▒    ▒ ░▒░ ░ ░       ▒   ▒▒ ░░ ░▒  ░ ░    ░    
-  ░   ▒     ░e   ░ ░         ░  ░e ░ ░ ░     ░   ▒   ░  ░  ░    ░      
-      ░  ░   ░     ░ ░       ░  ░  ░             ░  ░      ░           
-                   ░                                                   
-                             CTOR
+             ___    ____  ________  ___________   ___________
+            /   |  / __ \/ ____/ / / / ____/   | / ___/_  __/
+           / /| | / /_/ / /   / /_/ / /_  / /| | \__ \ / /   
+          / ___ |/ _, _/ /___/ __  / __/ / ___ |___/ // /    
+         /_/  |_/_/ |_|\____/_/ /_/_/   /_/  |_/____//_/     
+                                                    
+                               CTOR
 -------------------------------------------------------------------------
-              Arch Linux Installation Complete! 🎉
+            Arch Linux Installation Complete! 🎉
 -------------------------------------------------------------------------
-Your new Arch Linux system is ready. Please reboot to experience it.
 "
-    read -r -p "Reboot now? (y/N): " reboot_choice
-    if [[ "${reboot_choice,,}" == "y" ]]; then
-        reboot now
+
+    if [[ "${HYPR_DOTS}" != "None" ]]; then
+        echo ""
+        echo "=================================================================="
+        echo "  Next Step: Install Hyprland Dotfiles. "
+        echo "=================================================================="
+        echo "Your selected Hyprland dotfiles (${HYPR_DOTS}) have been downloaded."
+
+        if [[ "${HYPR_DOTS}" == "Caelestia" ]]; then
+            echo "Caelestia dotfiles are located at: ~/.local/share/caelestia"
+            echo "To install Caelestia, log into your new Arch system as '${USERNAME}' and run:"
+            echo "  cd ~/.local/share/caelestia"
+            echo "  ./install.fish --noconfirm --spotify --vscode=code --discord --zen"
+            echo "(Note: You will need to switch to fish shell if you chose bash as primary, or just run the .fish script directly)"
+        else
+            echo "The dotfiles are located in your new system's Downloads directory:"
+            echo "  ${HYPR_DOTS_DIR}"
+            echo "To install them, log into your new Arch system as '${USERNAME}' and run:"
+            echo "  ${HYPR_INSTALL_COMMAND}"
+        fi
+
+        echo ""
+        echo "Remember to reboot your system and log in as '${USERNAME}' to complete the setup."
     else
-        echo "You can manually reboot later with 'reboot'."
+        echo "No Hyprland dotfiles were selected for download."
     fi
+
+    echo ""
+    echo "Installation script finished."
+    read -p "Press Enter to reboot, or Ctrl+C to exit."
+    reboot
 }
 
 main
