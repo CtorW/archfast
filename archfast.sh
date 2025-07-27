@@ -395,6 +395,7 @@ chroot_configuration() {
     fi
 
     arch-chroot /mnt /bin/bash -c "
+        unset HYPR_DOTS_URL HYPR_INSTALL_COMMAND HYPR_DOTS_DIR
 
         echo 'Setting up network...'
         systemctl enable NetworkManager
@@ -468,29 +469,54 @@ chroot_configuration() {
 
         echo 'Downloading selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
+            if ! command -v git &> /dev/null; then
+                echo \"Error: git command not found inside chroot. Cannot clone dotfiles. Aborting.\"
+                exit 1
+            fi
+
             mkdir -p /home/${USERNAME}/Downloads
             if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                mkdir -p /home/${USERNAME}/.local/share
-                if ! git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/.local/share/caelestia; then
-                    echo \"Error: Failed to clone Caelestia dotfiles. Aborting.\"
+                local caelestia_dir=\"/home/${USERNAME}/.local/share/caelestia\"
+                mkdir -p ${caelestia_dir}
+                echo \"Attempting to clone Caelestia dotfiles from ${HYPR_DOTS_URL} into ${caelestia_dir}...\"
+                if ! git clone --depth 1 \"${HYPR_DOTS_URL}\" \"${caelestia_dir}\"; then
+                    echo \"CRITICAL ERROR: Failed to clone Caelestia dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.\"
                     exit 1
                 fi
-                chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local/share/caelestia
-                echo \"Caelestia dotfiles downloaded to ~/.local/share/caelestia.\"
+                chown -R ${USERNAME}:${USERNAME} \"${caelestia_dir}\"
+                echo \"Caelestia dotfiles downloaded to ${caelestia_dir}.\"
+
+                local install_cmd_caelestia=\"${caelestia_dir}/install.fish\"
+                echo \"Attempting to run Caelestia installer: ${install_cmd_caelestia}\"
                 if [[ "${SHELL_NAME}" == "fish" ]]; then
-                    su - ${USERNAME} -c "${HYPR_INSTALL_COMMAND}"
+                    if ! su - ${USERNAME} -c \"${install_cmd_caelestia}\"; then
+                        echo \"CRITICAL ERROR: Caelestia dotfiles installation failed. Review the installer's output.\"
+                        exit 1
+                    fi
                 else
-                    su - ${USERNAME} -c "fish ${HYPR_INSTALL_COMMAND}"
+                    if ! su - ${USERNAME} -c \"fish ${install_cmd_caelestia}\"; then
+                        echo \"CRITICAL ERROR: Caelestia dotfiles installation failed. Review the installer's output.\"
+                        exit 1
+                    fi
                 fi
 
             else
-                if ! git clone --depth 1 ${HYPR_DOTS_URL} ${HYPR_DOTS_DIR}; then
-                    echo \"Error: Failed to clone ${HYPR_DOTS} dotfiles. Aborting.\"
+                local dotfiles_target_dir=\"${HYPR_DOTS_DIR}\"
+                mkdir -p \"${dotfiles_target_dir}\"
+                echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${dotfiles_target_dir}...\"
+                if ! git clone --depth 1 \"${HYPR_DOTS_URL}\" \"${dotfiles_target_dir}\"; then
+                    echo \"CRITICAL ERROR: Failed to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.\"
                     exit 1
                 fi
-                chown -R ${USERNAME}:${USERNAME} ${HYPR_DOTS_DIR}
-                echo \"${HYPR_DOTS} dotfiles downloaded to ${HYPR_DOTS_DIR}.\"
-                su - ${USERNAME} -c "cd ${HYPR_DOTS_DIR} && ${HYPR_INSTALL_COMMAND}"
+                chown -R ${USERNAME}:${USERNAME} \"${dotfiles_target_dir}\"
+                echo \"${HYPR_DOTS} dotfiles downloaded to ${dotfiles_target_dir}.\"
+
+                local install_cmd_other=\"${HYPR_INSTALL_COMMAND}\"
+                echo \"Attempting to run ${HYPR_DOTS} installer: ${install_cmd_other}\"
+                if ! su - ${USERNAME} -c \"cd ${dotfiles_target_dir} && ${install_cmd_other}\"; then
+                    echo \"CRITICAL ERROR: ${HYPR_DOTS} dotfiles installation failed. Review the installer's output.\"
+                    exit 1
+                fi
             fi
         fi
 
