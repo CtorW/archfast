@@ -132,26 +132,26 @@ Please select a Hyprland dotfiles configuration to install (or skip):
         0)
             export HYPR_DOTS="End-4"
             export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/dots-hyprland"
-            export HYPR_INSTALL_COMMAND="cd ~/Downloads/dots-hyprland && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/dots-hyprland && ./install.sh"
             ;;
         1)
             export HYPR_DOTS="HyDE"
             export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyDE"
-            export HYPR_INSTALL_COMMAND="cd ~/Downloads/HyDE/Scripts && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyDE/Scripts && ./install.sh"
             ;;
         2)
             export HYPR_DOTS="Hyprluna"
             export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyprLuna"
-            export HYPR_INSTALL_COMMAND="cd ~/Downloads/HyprLuna && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyprLuna && ./install.sh"
             ;;
         3)
             export HYPR_DOTS="Caelestia"
             export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/.local/share/caelestia"
-            export HYPR_INSTALL_COMMAND="fish ~/.local/share/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="fish ~/Hyprland-archfast/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
             ;;
         4)
             export HYPR_DOTS="None"
@@ -395,8 +395,6 @@ chroot_configuration() {
     fi
 
     arch-chroot /mnt /bin/bash -c "
-        unset HYPR_DOTS_URL HYPR_INSTALL_COMMAND HYPR_DOTS_DIR
-
         echo 'Setting up network...'
         systemctl enable NetworkManager
 
@@ -474,49 +472,21 @@ chroot_configuration() {
                 exit 1
             fi
 
-            mkdir -p /home/${USERNAME}/Downloads
-            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                local caelestia_dir=\"/home/${USERNAME}/.local/share/caelestia\"
-                mkdir -p ${caelestia_dir}
-                echo \"Attempting to clone Caelestia dotfiles from ${HYPR_DOTS_URL} into ${caelestia_dir}...\"
-                if ! git clone --depth 1 \"${HYPR_DOTS_URL}\" \"${caelestia_dir}\"; then
-                    echo \"CRITICAL ERROR: Failed to clone Caelestia dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.\"
-                    exit 1
-                fi
-                chown -R ${USERNAME}:${USERNAME} \"${caelestia_dir}\"
-                echo \"Caelestia dotfiles downloaded to ${caelestia_dir}.\"
+            local dotfiles_clone_target=\"${HYPR_DOTS_DIR}\"
+            mkdir -p \"${dotfiles_clone_target}\"
+            chown -R ${USERNAME}:${USERNAME} \"${dotfiles_clone_target}\"
 
-                local install_cmd_caelestia=\"${caelestia_dir}/install.fish\"
-                echo \"Attempting to run Caelestia installer: ${install_cmd_caelestia}\"
-                if [[ "${SHELL_NAME}" == "fish" ]]; then
-                    if ! su - ${USERNAME} -c \"${install_cmd_caelestia}\"; then
-                        echo \"CRITICAL ERROR: Caelestia dotfiles installation failed. Review the installer's output.\"
-                        exit 1
-                    fi
-                else
-                    if ! su - ${USERNAME} -c \"fish ${install_cmd_caelestia}\"; then
-                        echo \"CRITICAL ERROR: Caelestia dotfiles installation failed. Review the installer's output.\"
-                        exit 1
-                    fi
-                fi
+            echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${dotfiles_clone_target}...\"
+            if ! su - ${USERNAME} -c \"git clone --depth 1 \\\"${HYPR_DOTS_URL}\\\" \\\"${dotfiles_clone_target}\\\"\"; then
+                echo \"CRITICAL ERROR: Failed to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.\"
+                exit 1
+            fi
+            echo \"${HYPR_DOTS} dotfiles downloaded to ${dotfiles_clone_target}.\"
 
-            else
-                local dotfiles_target_dir=\"${HYPR_DOTS_DIR}\"
-                mkdir -p \"${dotfiles_target_dir}\"
-                echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${dotfiles_target_dir}...\"
-                if ! git clone --depth 1 \"${HYPR_DOTS_URL}\" \"${dotfiles_target_dir}\"; then
-                    echo \"CRITICAL ERROR: Failed to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.\"
-                    exit 1
-                fi
-                chown -R ${USERNAME}:${USERNAME} \"${dotfiles_target_dir}\"
-                echo \"${HYPR_DOTS} dotfiles downloaded to ${dotfiles_target_dir}.\"
-
-                local install_cmd_other=\"${HYPR_INSTALL_COMMAND}\"
-                echo \"Attempting to run ${HYPR_DOTS} installer: ${install_cmd_other}\"
-                if ! su - ${USERNAME} -c \"cd ${dotfiles_target_dir} && ${install_cmd_other}\"; then
-                    echo \"CRITICAL ERROR: ${HYPR_DOTS} dotfiles installation failed. Review the installer's output.\"
-                    exit 1
-                fi
+            echo \"Attempting to run ${HYPR_DOTS} installer: ${HYPR_INSTALL_COMMAND}\"
+            if ! su - ${USERNAME} -c \"${HYPR_INSTALL_COMMAND}\"; then
+                echo \"CRITICAL ERROR: ${HYPR_DOTS} dotfiles installation failed. Review the installer's output.\"
+                exit 1
             fi
         fi
 
