@@ -132,26 +132,26 @@ Please select a Hyprland dotfiles configuration to install (or skip):
         0)
             export HYPR_DOTS="End-4"
             export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/dots-hyprland"
-            export HYPR_INSTALL_COMMAND="cd ~/Downloads/dots-hyprland && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/dots-hyprland && ./install.sh"
             ;;
         1)
             export HYPR_DOTS="HyDE"
             export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyDE"
-            export HYPR_INSTALL_COMMAND="cd ~/Downloads/HyDE/Scripts && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyDE/Scripts && ./install.sh"
             ;;
         2)
             export HYPR_DOTS="Hyprluna"
             export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyprLuna"
-            export HYPR_INSTALL_COMMAND="cd ~/Downloads/HyprLuna && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyprLuna && ./install.sh"
             ;;
         3)
             export HYPR_DOTS="Caelestia"
-            export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia.git"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/.local/share/caelestia"
-            export HYPR_INSTALL_COMMAND="fish ~/.local/share/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
+            export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="fish ~/Hyprland-archfast/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
             ;;
         4)
             export HYPR_DOTS="None"
@@ -388,14 +388,13 @@ chroot_configuration() {
     local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
 
     arch-chroot /mnt pacman -S --noconfirm --needed networkmanager dhcpcd pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget fish
-    
+
     if [[ "${SHELL_NAME}" == "fish" ]]; then
         arch-chroot /mnt pacman -S --noconfirm --needed fish
         arch-chroot /mnt chsh -s /usr/bin/fish ${USERNAME}
     fi
 
     arch-chroot /mnt /bin/bash -c "
-
         echo 'Setting up network...'
         systemctl enable NetworkManager
 
@@ -468,22 +467,26 @@ chroot_configuration() {
 
         echo 'Downloading selected Hyprland dotfiles...'
         if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
-            mkdir -p /home/${USERNAME}/Downloads
-            if [[ \"${HYPR_DOTS}\" == \"Caelestia\" ]]; then
-                mkdir -p /home/${USERNAME}/.local/share
-                if ! git clone --depth 1 ${HYPR_DOTS_URL} /home/${USERNAME}/.local/share/caelestia; then
-                    echo \"Error: Failed to clone Caelestia dotfiles. Aborting.\"
-                    exit 1
-                fi
-                chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local/share/caelestia
-                echo \"Caelestia dotfiles downloaded to ~/.local/share/caelestia.\"
-            else
-                if ! git clone --depth 1 ${HYPR_DOTS_URL} ${HYPR_DOTS_DIR}; then
-                    echo \"Error: Failed to clone ${HYPR_DOTS} dotfiles. Aborting.\"
-                    exit 1
-                fi
-                chown -R ${USERNAME}:${USERNAME} ${HYPR_DOTS_DIR}
-                echo \"${HYPR_DOTS} dotfiles downloaded to ${HYPR_DOTS_DIR}.\"
+            if ! command -v git &> /dev/null; then
+                echo \"Error: git command not found inside chroot. Cannot clone dotfiles. Aborting.\"
+                exit 1
+            fi
+
+            local dotfiles_clone_target=\"${HYPR_DOTS_DIR}\"
+            mkdir -p \"${dotfiles_clone_target}\"
+            chown -R ${USERNAME}:${USERNAME} \"${dotfiles_clone_target}\"
+
+            echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${dotfiles_clone_target}...\"
+            if ! su - ${USERNAME} -c \"git clone --depth 1 \\\"${HYPR_DOTS_URL}\\\" \\\"${dotfiles_clone_target}\\\"\"; then
+                echo \"CRITICAL ERROR: Failed to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.\"
+                exit 1
+            fi
+            echo \"${HYPR_DOTS} dotfiles downloaded to ${dotfiles_clone_target}.\"
+
+            echo \"Attempting to run ${HYPR_DOTS} installer: ${HYPR_INSTALL_COMMAND}\"
+            if ! su - ${USERNAME} -c \"${HYPR_INSTALL_COMMAND}\"; then
+                echo \"CRITICAL ERROR: ${HYPR_DOTS} dotfiles installation failed. Review the installer's output.\"
+                exit 1
             fi
         fi
 
