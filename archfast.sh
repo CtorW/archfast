@@ -388,7 +388,7 @@ chroot_configuration() {
     local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
 
     arch-chroot /mnt pacman -S --noconfirm --needed networkmanager dhcpcd pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget fish
-    
+
     if [[ "${SHELL_NAME}" == "fish" ]]; then
         arch-chroot /mnt pacman -S --noconfirm --needed fish
         arch-chroot /mnt chsh -s /usr/bin/fish ${USERNAME}
@@ -477,6 +477,12 @@ chroot_configuration() {
                 fi
                 chown -R ${USERNAME}:${USERNAME} /home/${USERNAME}/.local/share/caelestia
                 echo \"Caelestia dotfiles downloaded to ~/.local/share/caelestia.\"
+                if [[ "${SHELL_NAME}" == "fish" ]]; then
+                    su - ${USERNAME} -c "${HYPR_INSTALL_COMMAND}"
+                else
+                    su - ${USERNAME} -c "fish ${HYPR_INSTALL_COMMAND}"
+                fi
+
             else
                 if ! git clone --depth 1 ${HYPR_DOTS_URL} ${HYPR_DOTS_DIR}; then
                     echo \"Error: Failed to clone ${HYPR_DOTS} dotfiles. Aborting.\"
@@ -484,6 +490,7 @@ chroot_configuration() {
                 fi
                 chown -R ${USERNAME}:${USERNAME} ${HYPR_DOTS_DIR}
                 echo \"${HYPR_DOTS} dotfiles downloaded to ${HYPR_DOTS_DIR}.\"
+                su - ${USERNAME} -c "cd ${HYPR_DOTS_DIR} && ${HYPR_INSTALL_COMMAND}"
             fi
         fi
 
