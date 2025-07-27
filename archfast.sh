@@ -151,7 +151,7 @@ Please select a Hyprland dotfiles configuration to install (or skip):
             export HYPR_DOTS="Caelestia"
             export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia.git"
             export HYPR_DOTS_DIR="/home/${USERNAME}/.local/share/caelestia"
-            export HYPR_INSTALL_COMMAND="cd ~/.local/share/caelestia && ./install.fish --noconfirm --spotify --vscode=code --discord --zen"
+            export HYPR_INSTALL_COMMAND="fish ~/.local/share/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
             ;;
         4)
             export HYPR_DOTS="None"
@@ -164,7 +164,8 @@ Please select a Hyprland dotfiles configuration to install (or skip):
             select_hyprland_dots
             ;;
     esac
-    echo -ne "Hyprland dotfiles set to: ${HYPR_DOTS}\n"
+    echo -ne "Hyprland dotfiles set to: ${HYPR_DOTS}
+"
 }
 
 select_shell() {
@@ -422,8 +423,8 @@ chroot_configuration() {
         echo 'Configuring sudoers and Pacman features...'
         sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
         sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-        sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
-        sed -i \"/\[multilib\]/,/Include/s/^#//\" /etc/pacman.conf
+        sed -i 's/^#Color/Color\\nILoveCandy/' /etc/pacman.conf
+        sed -i \"/\\[multilib\\]/,/Include/s/^#//\" /etc/pacman.conf
         pacman -Sy --noconfirm --needed
 
         echo 'Installing microcode...'
@@ -609,8 +610,7 @@ main() {
            / /| | / /_/ / /   / /_/ / /_  / /| | \__ \ / /   
           / ___ |/ _, _/ /___/ __  / __/ / ___ |___/ // /    
          /_/  |_/_/ |_|\____/_/ /_/_/   /_/  |_/____//_/     
-                                                           
-                               CTOR
+                                CTOR
 -------------------------------------------------------------------------
             Arch Linux Installation Complete! 🎉
 -------------------------------------------------------------------------
