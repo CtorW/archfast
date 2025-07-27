@@ -149,7 +149,7 @@ Please select a Hyprland dotfiles configuration to install (or skip):
             ;;
         3)
             export HYPR_DOTS="Caelestia"
-            export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia.git"
+            export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia"
             export HYPR_DOTS_DIR="/home/${USERNAME}/.local/share/caelestia"
             export HYPR_INSTALL_COMMAND="fish ~/.local/share/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
             ;;
