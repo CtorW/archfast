@@ -333,8 +333,11 @@ ${Color_Off}"
 
     echo -e "${BBlue}Scanning for available disks...${Color_Off}"
     local disks=()
+    
+    local disk_paths=()
     while IFS="|" read -r dev size; do
         disks+=("$dev|$size")
+        disk_paths+=("$dev")
     done < <(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}')
 
     if [ ${#disks[@]} -eq 0 ]; then
@@ -349,7 +352,18 @@ ${Color_Off}"
 
     while true; do
         read -r -p "${BBlue}Type the device path of the disk you want to use (e.g., /dev/sda): ${Color_Off}" user_disk
-        if [[ " ${disks[*]} " == *"${user_disk}|*"* ]]; then
+        
+        user_disk=$(echo "$user_disk" | xargs)
+        
+        local found_disk=false
+        for dp in "${disk_paths[@]}"; do
+            if [[ "$dp" == "$user_disk" ]]; then
+                found_disk=true
+                break
+            fi
+        done
+
+        if $found_disk; then
             export DISK="${user_disk}"
             echo -e "${Green}Selected disk: ${DISK}${Color_Off}"
             break
