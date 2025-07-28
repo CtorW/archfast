@@ -465,31 +465,6 @@ chroot_configuration() {
         echo \"Password set for ${USERNAME}.\"
         echo ${NAME_OF_MACHINE} > /etc/hostname
 
-        echo 'Downloading selected Hyprland dotfiles...'
-        if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
-            if ! command -v git &> /dev/null; then
-                echo \"Error: git command not found inside chroot. Cannot clone dotfiles. Aborting.\"
-                exit 1
-            fi
-
-            local dotfiles_clone_target=\"${HYPR_DOTS_DIR}\"
-            mkdir -p \"${dotfiles_clone_target}\"
-            chown -R ${USERNAME}:${USERNAME} \"${dotfiles_clone_target}\"
-
-            echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${dotfiles_clone_target}...\"
-            if ! su - ${USERNAME} -c \"git clone --depth 1 \\\"${HYPR_DOTS_URL}\\\" \\\"${dotfiles_clone_target}\\\"\"; then
-                echo \"CRITICAL ERROR: Failed to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.\"
-                exit 1
-            fi
-            echo \"${HYPR_DOTS} dotfiles downloaded to ${dotfiles_clone_target}.\"
-
-            echo \"Attempting to run ${HYPR_DOTS} installer: ${HYPR_INSTALL_COMMAND}\"
-            if ! su - ${USERNAME} -c \"${HYPR_INSTALL_COMMAND}\"; then
-                echo \"CRITICAL ERROR: ${HYPR_DOTS} dotfiles installation failed. Review the installer's output.\"
-                exit 1
-            fi
-        fi
-
         if [[ ${FS} == \"luks\" ]]; then
             echo 'Configuring mkinitcpio for LUKS encryption...'
             sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
@@ -522,6 +497,33 @@ chroot_configuration() {
 
         echo 'Finalizing user permissions...'
     "
+
+    if [[ "${HYPR_DOTS}" != "None" ]]; then
+        echo "Cloning and installing Hyprland dotfiles after system setup..."
+        arch-chroot /mnt /bin/bash -c '
+            set -e
+            export USERNAME="'"${USERNAME}"'"
+            export HYPR_DOTS="'"${HYPR_DOTS}"'"
+            export HYPR_DOTS_URL="'"${HYPR_DOTS_URL}"'"
+            export HYPR_DOTS_DIR="'"${HYPR_DOTS_DIR}"'"
+            export HYPR_INSTALL_COMMAND="'"${HYPR_INSTALL_COMMAND}"'"
+
+            if [[ -n "$HYPR_DOTS_URL" && -n "$HYPR_DOTS_DIR" ]]; then
+                mkdir -p "$HYPR_DOTS_DIR"
+                chown -R $USERNAME:$USERNAME "$HYPR_DOTS_DIR"
+                if ! su - $USERNAME -c "git clone --depth 1 \"$HYPR_DOTS_URL\" \"$HYPR_DOTS_DIR\""; then
+                    echo "CRITICAL ERROR: Failed to clone $HYPR_DOTS dotfiles from $HYPR_DOTS_URL"
+                    exit 1
+                fi
+                echo "Cloned $HYPR_DOTS dotfiles to $HYPR_DOTS_DIR"
+                if ! su - $USERNAME -c "$HYPR_INSTALL_COMMAND"; then
+                    echo "CRITICAL ERROR: $HYPR_DOTS dotfiles installation failed."
+                    exit 1
+                fi
+                echo "$HYPR_DOTS dotfiles installed successfully."
+            fi
+        '
+    fi
 }
 
 create_swap_if_needed() {
@@ -624,7 +626,7 @@ main() {
         echo "=================================================================="
         echo "  Next Step: Install Hyprland Dotfiles. "
         echo "=================================================================="
-        echo "Your selected Hyprland dotfiles (${HYPR_DOTS}) have been downloaded."
+        echo "Your selected Hyprland dotfiles (${HYPR_DOTS}) have been downloaded and installed."
 
         if [[ "${HYPR_DOTS}" == "Caelestia" ]]; then
             echo "Caelestia dotfiles are located at: ~/.local/share/caelestia"
