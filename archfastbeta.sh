@@ -280,16 +280,23 @@ keymap() {
 
 drivessd() {
     display_section_title "Drive Type"
-    echo -e "${BBlue}Is the selected disk an SSD?${Color_Off}"
-    options=("Yes" "No")
-    select_option "${options[@]}"
-    local choice_index=$?
-
-    case ${choice_index} in
-        0) export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120";;
-        1) export MOUNT_OPTIONS="noatime,compress=zstd,commit=120";;
-        *) echo -e "${BRed}Invalid option. Trying again.${Color_Off}"; drivessd;;
-    esac
+    echo -e "${BBlue}Is the selected disk an SSD? Type yes or no:${Color_Off}"
+    while true; do
+        read -r answer
+        case "${answer,,}" in
+            yes)
+                export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+                break
+                ;;
+            no)
+                export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
+                break
+                ;;
+            *)
+                echo -e "${BRed}Invalid input. Please type yes or no:${Color_Off}"
+                ;;
+        esac
+    done
     echo -e "${Green}Mount options set based on drive type.${Color_Off}"
 }
 
