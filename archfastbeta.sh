@@ -490,7 +490,7 @@ clear
 display_section_title "System Setup and Mirror Configuration"
 
 echo -e "${Blue}Setting up mirrors for optimal download...${Color_Off}"
-local iso_country_code="$(curl --fail --silent --show-error https://ifconfig.io/country_code || echo "US")"
+iso_country_code="$(curl --fail --silent --show-error https://ifconfig.io/country_code || echo "US")"
 echo -e "${Green}Detected country: ${iso_country_code}${Color_Off}"
 
 timedatectl set-ntp true
