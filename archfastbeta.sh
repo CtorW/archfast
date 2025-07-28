@@ -543,11 +543,11 @@ partprobe "${DISK}"
 sleep 2
 
 if [[ "${DISK}" =~ "nvme" ]]; then
-    local partition2="${DISK}p2"
-    local partition3="${DISK}p3"
+    partition2="${DISK}p2"
+    partition3="${DISK}p3"
 else
-    local partition2="${DISK}2"
-    local partition3="${DISK}3"
+    partition2="${DISK}2"
+    partition3="${DISK}3"
 fi
 
 display_section_title "Creating Filesystems"
@@ -590,7 +590,7 @@ if ! mountpoint -q /mnt; then
     exit 1
 fi
 
-local BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
+BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
 mkdir -p /mnt/boot
 echo -e "${Blue}Mounting boot partition ${partition2} (UUID: ${BOOT_UUID}) to /mnt/boot...${Color_Off}"
 mount -U "${BOOT_UUID}" /mnt/boot/
@@ -629,8 +629,8 @@ if [[ ! -d "/sys/firmware/efi" ]]; then
 fi
 
 display_section_title "Checking for low memory systems (<8GB)"
-local TOTAL_MEM_KB=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
-local TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
+TOTAL_MEM_KB=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
+TOTAL_MEM_MB=$((TOTAL_MEM_KB / 1024))
 
 if [[ "$TOTAL_MEM_MB" -lt 8000 ]]; then
     echo -e "${Yellow}System memory (${TOTAL_MEM_MB}MB) is less than 8GB. Creating a 2GB swap file.${Color_Off}"
