@@ -400,12 +400,9 @@ hyprland_dots_menu() {
     echo -e "${BBlue}Do you want to install Hyprland with the HyDE dotfiles?${Color_Off}"
     echo -e "${Yellow}Note: This will clone and run the HyDE install script as your user.${Color_Off}"
 
-    # List of options, easy to expand for future dotfiles
     echo -e "${BBlue}Available dotfile options:${Color_Off}"
     echo -e "  1) Yes, install Hyprland with HyDE Dots"
     echo -e "  2) No, skip dotfiles"
-    # Add more options here as needed, for example:
-    # echo -e "  3) Install MyOtherDotfiles"
 
     while true; do
         read -r -p "${BBlue}Type the number of your choice and press Enter: ${Color_Off}" choice
