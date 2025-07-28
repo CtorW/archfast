@@ -277,13 +277,19 @@ timezone() {
 
 keymap() {
     display_section_title "Keyboard Layout Selection"
-    echo -e "${BBlue}Please select your keyboard layout from this list:${Color_Off}"
-    options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
+    echo -e "${BBlue}Available keyboard layouts: us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk${Color_Off}"
+    echo -e "${BBlue}Please type your keyboard layout from the list above (e.g., us):${Color_Off}"
+    read -r user_keymap
 
-    select_option "${options[@]}"
-    export KEYMAP="${options[$?]}"
-
-    echo -e "${Green}Your keyboard layout: ${KEYMAP}${Color_Off}"
+    # Validate input is in the list
+    local valid_layouts="us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk"
+    if [[ " $valid_layouts " == *" $user_keymap "* ]]; then
+        export KEYMAP="$user_keymap"
+        echo -e "${Green}Your keyboard layout: ${KEYMAP}${Color_Off}"
+    else
+        echo -e "${BRed}Invalid keyboard layout. Please try again.${Color_Off}"
+        keymap
+    fi
 }
 
 drivessd() {
@@ -326,18 +332,32 @@ ${Color_Off}"
     fi
 
     echo -e "${BBlue}Scanning for available disks...${Color_Off}"
-    local options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}'))
+    local disks=()
+    while IFS="|" read -r dev size; do
+        disks+=("$dev|$size")
+    done < <(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}')
 
-    if [ ${#options[@]} -eq 0 ]; then
+    if [ ${#disks[@]} -eq 0 ]; then
         echo -e "${BRed}ERROR: No disks found. Exiting.${Color_Off}"
         exit 1
     fi
 
-    select_option "${options[@]}"
-    local selected_disk_info="${options[$?]}"
-    export DISK="${selected_disk_info%|*}"
+    echo -e "${BBlue}Available disks:${Color_Off}"
+    for disk in "${disks[@]}"; do
+        echo -e "  ${Green}${disk%|*}${Color_Off} (${disk#*|})"
+    done
 
-    echo -e "${Green}Selected disk: ${DISK} (${selected_disk_info#*|})${Color_Off}"
+    while true; do
+        read -r -p "${BBlue}Type the device path of the disk you want to use (e.g., /dev/sda): ${Color_Off}" user_disk
+        if [[ " ${disks[*]} " == *"${user_disk}|*"* ]]; then
+            export DISK="${user_disk}"
+            echo -e "${Green}Selected disk: ${DISK}${Color_Off}"
+            break
+        else
+            echo -e "${BRed}Invalid disk selection. Please type the device path exactly as shown above.${Color_Off}"
+        fi
+    done
+
     drivessd
 }
 
@@ -379,15 +399,35 @@ hyprland_dots_menu() {
     display_section_title "Hyprland Dotfiles Integration"
     echo -e "${BBlue}Do you want to install Hyprland with the HyDE dotfiles?${Color_Off}"
     echo -e "${Yellow}Note: This will clone and run the HyDE install script as your user.${Color_Off}"
-    options=("Yes, install Hyprland with HyDE Dots" "No, skip dotfiles")
-    select_option "${options[@]}"
-    local choice_index=$?
 
-    case ${choice_index} in
-        0) export HYPRLAND_DOTS_CHOICE="yes";;
-        1) export HYPRLAND_DOTS_CHOICE="no";;
-        *) echo -e "${BRed}Invalid option. Please select again.${Color_Off}"; hyprland_dots_menu;;
-    esac
+    # List of options, easy to expand for future dotfiles
+    echo -e "${BBlue}Available dotfile options:${Color_Off}"
+    echo -e "  1) Yes, install Hyprland with HyDE Dots"
+    echo -e "  2) No, skip dotfiles"
+    # Add more options here as needed, for example:
+    # echo -e "  3) Install MyOtherDotfiles"
+
+    while true; do
+        read -r -p "${BBlue}Type the number of your choice and press Enter: ${Color_Off}" choice
+        case "$choice" in
+            1)
+                export HYPRLAND_DOTS_CHOICE="yes"
+                break
+                ;;
+            2)
+                export HYPRLAND_DOTS_CHOICE="no"
+                break
+                ;;
+            # 3)
+            #     export HYPRLAND_DOTS_CHOICE="myotherdotfiles"
+            #     break
+            #     ;;
+            *)
+                echo -e "${BRed}Invalid option. Please type 1 or 2.${Color_Off}"
+                ;;
+        esac
+    done
+
     echo -e "${Green}Hyprland dotfiles choice: ${HYPRLAND_DOTS_CHOICE}${Color_Off}"
 }
 
