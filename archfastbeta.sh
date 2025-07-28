@@ -259,23 +259,15 @@ timezone() {
     detected_timezone="$(curl --fail --silent --show-error https://ipapi.co/timezone || echo "Unknown")"
 
     echo -e "${BBlue}System detected your timezone to be '${detected_timezone}'.${Color_Off}"
-    echo -e "${BBlue}Is this correct?${Color_Off}"
-    options=("Yes" "No")
-    select_option "${options[@]}"
-    local choice_index=$?
+    read -r -p "${BBlue}Press Enter to accept, or type your desired timezone (e.g., Europe/London): ${Color_Off}" user_timezone
 
-    case ${choice_index} in
-        0)
-            echo -e "${Green}${detected_timezone} set as timezone.${Color_Off}"
-            export TIMEZONE="${detected_timezone}"
-            ;;
-        1)
-            read -r -p "${BBlue}Please enter your desired timezone (e.g., Europe/London): ${Color_Off}" new_timezone
-            echo -e "${Green}${new_timezone} set as timezone.${Color_Off}"
-            export TIMEZONE="${new_timezone}"
-            ;;
-        *) echo -e "${BRed}Invalid option. Trying again.${Color_Off}"; timezone;;
-    esac
+    if [[ -z "$user_timezone" ]]; then
+        export TIMEZONE="${detected_timezone}"
+        echo -e "${Green}${detected_timezone} set as timezone.${Color_Off}"
+    else
+        export TIMEZONE="${user_timezone}"
+        echo -e "${Green}${user_timezone} set as timezone.${Color_Off}"
+    fi
 
     if ! timedatectl list-timezones | grep -q "^${TIMEZONE}$"; then
         echo -e "${Yellow}WARNING: The selected timezone '${TIMEZONE}' might be invalid. Please double-check.${Color_Off}"
