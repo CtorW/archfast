@@ -220,20 +220,36 @@ background_checks() {
 filesystem() {
     display_section_title "Filesystem Selection"
     echo -e "${BBlue}Please select your file system for both boot and root.${Color_Off}"
-    options=("btrfs" "ext4" "luks" "Exit Script")
-    select_option "${options[@]}"
-    local choice_index=$?
+    # List options
+    echo "1) btrfs"
+    echo "2) ext4"
+    echo "3) luks"
+    echo "4) Exit Script"
 
-    case ${choice_index} in
-        0) export FS="btrfs";;
-        1) export FS="ext4";;
-        2)
-            set_password "LUKS_PASSWORD"
-            export FS="luks"
-            ;;
-        3) exit ;;
-        *) echo -e "${BRed}Invalid option. Please select again.${Color_Off}"; filesystem;;
-    esac
+    while true; do
+        read -rp "Enter the number of your choice [1-4]: " choice
+        case "$choice" in
+            1)
+                export FS="btrfs"
+                break
+                ;;
+            2)
+                export FS="ext4"
+                break
+                ;;
+            3)
+                set_password "LUKS_PASSWORD"
+                export FS="luks"
+                break
+                ;;
+            4)
+                exit
+                ;;
+            *)
+                echo -e "${BRed}Invalid option. Please select again.${Color_Off}"
+                ;;
+        esac
+    done
     echo -e "${Green}Filesystem selected: ${FS}${Color_Off}"
 }
 
