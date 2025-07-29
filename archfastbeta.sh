@@ -363,7 +363,7 @@ ${Color_Off}"
             fi
         done
 
-        if $found_disk; then
+        if "$found_disk"; then
             export DISK="${user_disk}"
             echo -e "${Green}Selected disk: ${DISK}${Color_Off}"
             break
