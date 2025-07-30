@@ -114,10 +114,8 @@ select_option() {
     local selected=0
     local last_selected=-1
 
-    echo -e "${BBlue}Please select an option using the arrow keys and Enter:${Color_Off}"
-
     while true; do
-        if [ $last_selected -ne -1 ]; then
+        if [ "$last_selected" -ne -1 ]; then
             echo -ne "\033[${num_options}A"
         fi
 
@@ -178,7 +176,6 @@ set_password() {
     done
 }
 
-
 check_arch_iso() {
     if [ ! -f /usr/bin/pacstrap ]; then
         echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment.${Color_Off}"
@@ -200,6 +197,13 @@ docker_check() {
     fi
 }
 
+arch_check() {
+    if [[ ! -e /etc/arch-release ]]; then
+        echo -e "${BRed}ERROR: This script must be run in Arch Linux! (/etc/arch-release not found)${Color_Off}"
+        exit 1
+    fi
+}
+
 pacman_check() {
     if [[ -f /var/lib/pacman/db.lck ]]; then
         echo -e "${BRed}ERROR: Pacman is blocked. If not running, remove /var/lib/pacman/db.lck.${Color_Off}"
@@ -211,106 +215,96 @@ background_checks() {
     display_section_title "Verifying Arch Linux ISO is Booted & System Checks"
     check_arch_iso
     root_check
+    arch_check
     pacman_check
     docker_check
     echo -e "${Green}All initial checks passed.${Color_Off}"
 }
 
-
 filesystem() {
     display_section_title "Filesystem Selection"
     echo -e "${BBlue}Please select your file system for both boot and root.${Color_Off}"
-    # List options
-    echo "1) btrfs"
-    echo "2) ext4"
-    echo "3) luks"
-    echo "4) Exit Script"
+    options=("btrfs" "ext4" "luks")
+    select_option "${options[@]}"
+    local choice_index=$?
 
-    while true; do
-        read -rp "Enter the number of your choice [1-4]: " choice
-        case "$choice" in
-            1)
-                export FS="btrfs"
-                break
-                ;;
-            2)
-                export FS="ext4"
-                break
-                ;;
-            3)
-                set_password "LUKS_PASSWORD"
-                export FS="luks"
-                break
-                ;;
-            4)
-                exit
-                ;;
-            *)
-                echo -e "${BRed}Invalid option. Please select again.${Color_Off}"
-                ;;
-        esac
-    done
+    case "${options[$choice_index]}" in
+    "btrfs")
+        export FS="btrfs"
+        ;;
+    "ext4")
+        export FS="ext4"
+        ;;
+    "luks")
+        set_password "LUKS_PASSWORD"
+        export FS="luks"
+        ;;
+    *)
+        echo -e "${BRed}Invalid option. Please try again.${Color_Off}"
+        filesystem
+        ;;
+    esac
     echo -e "${Green}Filesystem selected: ${FS}${Color_Off}"
 }
 
 timezone() {
     display_section_title "Timezone Configuration"
     local detected_timezone
-    detected_timezone="$(curl --fail --silent --show-error https://ipapi.co/timezone || echo "Unknown")"
+    detected_timezone="$(curl --fail --silent --show-error https://ipapi.co/timezone || echo "UTC")"
 
     echo -e "${BBlue}System detected your timezone to be '${detected_timezone}'.${Color_Off}"
-    read -r -p "${BBlue}Press Enter to accept, or type your desired timezone (e.g., Europe/London): ${Color_Off}" user_timezone
+    echo -e "${BBlue}Do you want to use this, or enter a different one?${Color_Off}"
+    options=("Use detected timezone (${detected_timezone})" "Enter manually")
+    select_option "${options[@]}"
+    local choice_index=$?
 
-    if [[ -z "$user_timezone" ]]; then
+    if [ "$choice_index" -eq 0 ]; then
         export TIMEZONE="${detected_timezone}"
         echo -e "${Green}${detected_timezone} set as timezone.${Color_Off}"
     else
-        export TIMEZONE="${user_timezone}"
-        echo -e "${Green}${user_timezone} set as timezone.${Color_Off}"
-    fi
-
-    if ! timedatectl list-timezones | grep -q "^${TIMEZONE}$"; then
-        echo -e "${Yellow}WARNING: The selected timezone '${TIMEZONE}' might be invalid. Please double-check.${Color_Off}"
-        read -r -p "${Yellow}Press Enter to continue or Ctrl+C to exit and correct.${Color_Off}"
+        while true; do
+            read -r -p "${BBlue}Please enter your desired timezone (e.g., Europe/London): ${Color_Off}" new_timezone
+            if timedatectl list-timezones | grep -q "^${new_timezone}$"; then
+                export TIMEZONE="${new_timezone}"
+                echo -e "${Green}${new_timezone} set as timezone.${Color_Off}"
+                break
+            else
+                echo -e "${BRed}Invalid timezone. Please enter a valid timezone from 'timedatectl list-timezones'.${Color_Off}"
+            fi
+        done
     fi
 }
 
 keymap() {
     display_section_title "Keyboard Layout Selection"
-    echo -e "${BBlue}Available keyboard layouts: us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk${Color_Off}"
-    echo -e "${BBlue}Please type your keyboard layout from the list above (e.g., us):${Color_Off}"
-    read -r user_keymap
+    echo -e "${BBlue}Please select your keyboard layout from the list below:${Color_Off}"
+    local options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
 
-    # Validate input is in the list
-    local valid_layouts="us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk"
-    if [[ " $valid_layouts " == *" $user_keymap "* ]]; then
-        export KEYMAP="$user_keymap"
-        echo -e "${Green}Your keyboard layout: ${KEYMAP}${Color_Off}"
-    else
-        echo -e "${BRed}Invalid keyboard layout. Please try again.${Color_Off}"
-        keymap
-    fi
+    select_option "${options[@]}"
+    export KEYMAP="${options[$?]}"
+
+    echo -e "${Green}Your keyboard layout: ${KEYMAP}${Color_Off}"
 }
 
 drivessd() {
     display_section_title "Drive Type"
-    echo -e "${BBlue}Is the selected disk an SSD? Type yes or no:${Color_Off}"
-    while true; do
-        read -r answer
-        case "${answer,,}" in
-            yes)
-                export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
-                break
-                ;;
-            no)
-                export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
-                break
-                ;;
-            *)
-                echo -e "${BRed}Invalid input. Please type yes or no:${Color_Off}"
-                ;;
-        esac
-    done
+    echo -e "${BBlue}Is the selected disk an SSD?${Color_Off}"
+    options=("Yes" "No")
+    select_option "${options[@]}"
+    local choice_index=$?
+
+    case "${options[$choice_index]}" in
+    "Yes")
+        export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+        ;;
+    "No")
+        export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
+        ;;
+    *)
+        echo -e "${BRed}Invalid option. Try again.${Color_Off}"
+        drivessd
+        ;;
+    esac
     echo -e "${Green}Mount options set based on drive type.${Color_Off}"
 }
 
@@ -332,45 +326,25 @@ ${Color_Off}"
     fi
 
     echo -e "${BBlue}Scanning for available disks...${Color_Off}"
-    local disks=()
-    
-    local disk_paths=()
+
+    local disk_options=()
     while IFS="|" read -r dev size; do
-        disks+=("$dev|$size")
-        disk_paths+=("$dev")
+        disk_options+=("$dev ($size)")
     done < <(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}')
 
-    if [ ${#disks[@]} -eq 0 ]; then
+    if [ ${#disk_options[@]} -eq 0 ]; then
         echo -e "${BRed}ERROR: No disks found. Exiting.${Color_Off}"
         exit 1
     fi
 
-    echo -e "${BBlue}Available disks:${Color_Off}"
-    for disk in "${disks[@]}"; do
-        echo -e "  ${Green}${disk%|*}${Color_Off} (${disk#*|})"
-    done
+    echo -e "${BBlue}Please select the disk to install on:${Color_Off}"
+    select_option "${disk_options[@]}"
+    local selected_disk_index=$?
 
-    while true; do
-        read -r -p "${BBlue}Type the device path of the disk you want to use (e.g., /dev/sda): ${Color_Off}" user_disk
-        
-        user_disk=$(echo "$user_disk" | xargs)
-        
-        local found_disk=false
-        for dp in "${disk_paths[@]}"; do
-            if [[ "$dp" == "$user_disk" ]]; then
-                found_disk=true
-                break
-            fi
-        done
+    local selected_disk_info="${disk_options[$selected_disk_index]}"
+    export DISK=$(echo "$selected_disk_info" | awk '{print $1}')
 
-        if "$found_disk"; then
-            export DISK="${user_disk}"
-            echo -e "${Green}Selected disk: ${DISK}${Color_Off}"
-            break
-        else
-            echo -e "${BRed}Invalid disk selection. Please type the device path exactly as shown above.${Color_Off}"
-        fi
-    done
+    echo -e "${Green}Selected disk: ${DISK}${Color_Off}"
 
     drivessd
 }
@@ -392,7 +366,7 @@ userinfo() {
 
     while true; do
         read -r -p "${BBlue}Please name your machine (hostname): ${Color_Off}" name_of_machine
-        if [[ "${name_of_machine,,}" =~ ^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$ ]]; then
+        if [[ "$name_of_machine" =~ ^[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$ ]]; then
             export NAME_OF_MACHINE="$name_of_machine"
             echo -e "${Green}Hostname accepted.${Color_Off}"
             break
@@ -414,34 +388,24 @@ hyprland_dots_menu() {
     echo -e "${BBlue}Do you want to install Hyprland with the HyDE dotfiles?${Color_Off}"
     echo -e "${Yellow}Note: This will clone and run the HyDE install script as your user.${Color_Off}"
 
-    echo -e "${BBlue}Available dotfile options:${Color_Off}"
-    echo -e "  1) Yes, install Hyprland with HyDE Dots"
-    echo -e "  2) No, skip dotfiles"
+    local options=("Yes, install Hyprland with HyDE Dots" "No, skip dotfiles")
+    select_option "${options[@]}"
+    local choice_index=$?
 
-    while true; do
-        read -r -p "${BBlue}Type the number of your choice and press Enter: ${Color_Off}" choice
-        case "$choice" in
-            1)
-                export HYPRLAND_DOTS_CHOICE="yes"
-                break
-                ;;
-            2)
-                export HYPRLAND_DOTS_CHOICE="no"
-                break
-                ;;
-            # 3)
-            #     export HYPRLAND_DOTS_CHOICE="myotherdotfiles"
-            #     break
-            #     ;;
-            *)
-                echo -e "${BRed}Invalid option. Please type 1 or 2.${Color_Off}"
-                ;;
-        esac
-    done
-
+    case "${options[$choice_index]}" in
+    "Yes, install Hyprland with HyDE Dots")
+        export HYPRLAND_DOTS_CHOICE="yes"
+        ;;
+    "No, skip dotfiles")
+        export HYPRLAND_DOTS_CHOICE="no"
+        ;;
+    *)
+        echo -e "${BRed}Invalid option. Please try again.${Color_Off}"
+        hyprland_dots_menu
+        ;;
+    esac
     echo -e "${Green}Hyprland dotfiles choice: ${HYPRLAND_DOTS_CHOICE}${Color_Off}"
 }
-
 
 createsubvolumes() {
     echo -e "${Blue}Creating btrfs subvolumes...${Color_Off}"
@@ -452,7 +416,7 @@ createsubvolumes() {
 
 mountallsubvol() {
     echo -e "${Blue}Mounting btrfs subvolumes...${Color_Off}"
-    mount -o "${MOUNT_OPTIONS},subvol=@home" "${partition3}" /mnt/home
+    mount -o "${MOUNT_OPTIONS},subvol=@home" "${partition3_or_luks_dev}" /mnt/home
     echo -e "${Green}Btrfs subvolumes mounted.${Color_Off}"
 }
 
@@ -460,7 +424,7 @@ subvolumesetup() {
     echo -e "${Blue}Setting up BTRFS subvolumes...${Color_Off}"
     createsubvolumes
     umount /mnt
-    mount -o "${MOUNT_OPTIONS},subvol=@" "${partition3}" /mnt
+    mount -o "${MOUNT_OPTIONS},subvol=@" "${partition3_or_luks_dev}" /mnt
     mkdir -p /mnt/home
     mountallsubvol
     echo -e "${Green}BTRFS subvolume setup complete.${Color_Off}"
@@ -502,12 +466,12 @@ sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
 echo -e "${Blue}Reflecting mirrors for ${iso_country_code}...${Color_Off}"
 reflector -a 48 -c "${iso_country_code}" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist || {
-    echo -e "${BRed}Reflector failed. Falling back to backup mirrorlist.${Color_Off}"
+    echo -e "${BRed}Reflector failed to get new mirrors. Falling back to backup mirrorlist.${Color_Off}"
     cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
 }
 
 if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-    echo -e "${Yellow}Less than 5 mirrors found. Restoring mirrorlist from backup.${Color_Off}"
+    echo -e "${Yellow}Less than 5 mirrors found in the current mirrorlist. Restoring mirrorlist from backup.${Color_Off}"
     cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
 fi
 
@@ -550,6 +514,8 @@ else
     partition3="${DISK}3"
 fi
 
+local partition3_or_luks_dev="${partition3}"
+
 display_section_title "Creating Filesystems"
 
 if [[ "${FS}" == "btrfs" ]]; then
@@ -574,10 +540,11 @@ elif [[ "${FS}" == "luks" ]]; then
     echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
     echo -e "${Blue}Opening LUKS container 'ROOT'...${Color_Off}"
     echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-    echo -e "${Blue}Creating BTRFS filesystem on /dev/mapper/ROOT...${Color_Off}"
-    mkfs.btrfs "/dev/mapper/ROOT"
+    partition3_or_luks_dev="/dev/mapper/ROOT"
+    echo -e "${Blue}Creating BTRFS filesystem on ${partition3_or_luks_dev}...${Color_Off}"
+    mkfs.btrfs "${partition3_or_luks_dev}"
     echo -e "${Blue}Mounting BTRFS root to /mnt...${Color_Off}"
-    mount -t btrfs "/dev/mapper/ROOT" /mnt
+    mount -t btrfs "${partition3_or_luks_dev}" /mnt
     subvolumesetup
     export ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
 fi
@@ -586,7 +553,7 @@ echo -e "${Green}Filesystem creation complete.${Color_Off}"
 sync
 
 if ! mountpoint -q /mnt; then
-    echo -e "${BRed}ERROR: Failed to mount the root partition (${partition3}) to /mnt after multiple attempts.${Color_Off}"
+    echo -e "${BRed}ERROR: Failed to mount the root partition (${partition3_or_luks_dev}) to /mnt after multiple attempts.${Color_Off}"
     exit 1
 fi
 
@@ -652,8 +619,6 @@ else
     echo -e "${Green}System memory (${TOTAL_MEM_MB}MB) is 8GB or more. Skipping swap file creation.${Color_Off}"
 fi
 
-local gpu_type=$(lspci | grep -E "VGA|3D|Display")
-
 display_section_title "Entering Chroot Environment for Final Configuration"
 
 arch-chroot /mnt /bin/bash <<EOF
@@ -672,21 +637,15 @@ BCyan="\033[1;36m"
 set -euo pipefail
 
 echo -e "${BCyan}--- Network Setup ---${Color_Off}"
-echo -e "${Blue}Installing NetworkManager and dhcpcd...${Color_Off}"
 pacman -S --noconfirm --needed networkmanager dhcpcd
 systemctl enable NetworkManager
 echo -e "${Green}NetworkManager enabled.${Color_Off}"
 
 echo -e "${BCyan}--- Setting up pacman configuration ---${Color_Off}"
-echo -e "${Blue}Installing pacman-contrib and curl...${Color_Off}"
 pacman -S --noconfirm --needed pacman-contrib curl
-echo -e "${Blue}Enabling parallel downloads...${Color_Off}"
 sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-echo -e "${Blue}Enabling pacman colors and 'ILoveCandy' easter egg...${Color_Off}"
 sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
-echo -e "${Blue}Enabling multilib repository...${Color_Off}"
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
-echo -e "${Blue}Synchronizing pacman databases after multilib enable...${Color_Off}"
 pacman -Sy --noconfirm
 echo -e "${Green}Pacman configuration updated.${Color_Off}"
 
@@ -706,16 +665,12 @@ else
 fi
 
 echo -e "${BCyan}--- System Locale and Time Configuration ---${Color_Off}"
-echo -e "${Blue}Setting language to en_US.UTF-8 and generating locales.${Color_Off}"
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 locale-gen
-echo -e "${Blue}Setting timezone to ${TIMEZONE}.${Color_Off}"
 timedatectl --no-ask-password set-timezone "${TIMEZONE}"
 timedatectl --no-ask-password set-ntp 1
-echo -e "${Blue}Setting system locale to LANG=\"en_US.UTF-8\" LC_TIME=\"en_US.UTF-8\".${Color_Off}"
 localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
 ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
-echo -e "${Green}Locale and time configured.${Color_Off}"
 
 echo -e "${BCyan}--- Keyboard Layout Configuration ---${Color_Off}"
 echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
@@ -723,18 +678,15 @@ echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
 echo -e "${Green}Keymap set to: ${KEYMAP}.${Color_Off}"
 
 echo -e "${BCyan}--- Sudoers Configuration ---${Color_Off}"
-echo -e "${Blue}Enabling NOPASSWD for wheel group temporarily (will be removed later).${Color_Off}"
 sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 echo -e "${Green}NOPASSWD for wheel group enabled.${Color_Off}"
 
 echo -e "${BCyan}--- Installing Microcode ---${Color_Off}"
 if grep -q "GenuineIntel" /proc/cpuinfo; then
-    echo -e "${Blue}Installing Intel microcode...${Color_Off}"
     pacman -S --noconfirm --needed intel-ucode
     echo -e "${Green}Intel microcode installed.${Color_Off}"
 elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-    echo -e "${Blue}Installing AMD microcode...${Color_Off}"
     pacman -S --noconfirm --needed amd-ucode
     echo -e "${Green}AMD microcode installed.${Color_Off}"
 else
@@ -742,16 +694,14 @@ else
 fi
 
 echo -e "${BCyan}--- Installing Graphics Drivers ---${Color_Off}"
-if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
-    echo -e "${Blue}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
+local gpu_type=\$(lspci | grep -E "VGA|3D|Display")
+if echo "\${gpu_type}" | grep -E "NVIDIA|GeForce"; then
     pacman -S --noconfirm --needed nvidia-lts
     echo -e "${Green}NVIDIA drivers installed.${Color_Off}"
-elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
-    echo -e "${Blue}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
+elif echo "\${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
     pacman -S --noconfirm --needed xf86-video-amdgpu
     echo -e "${Green}AMD drivers installed.${Color_Off}"
-elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
-    echo -e "${Blue}Installing Intel graphics drivers...${Color_Off}"
+elif echo "\${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
     pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-utils lib32-mesa
     echo -e "${Green}Intel graphics drivers installed.${Color_Off}"
 else
@@ -759,9 +709,7 @@ else
 fi
 
 echo -e "${BCyan}--- User Account Setup ---${Color_Off}"
-echo -e "${Blue}Adding libvirt group...${Color_Off}"
 groupadd libvirt
-echo -e "${Blue}Creating user '${USERNAME}'...${Color_Off}"
 useradd -m -G wheel,libvirt -s /bin/bash "$USERNAME"
 echo -e "${Green}User '${USERNAME}' created, home directory created, added to wheel and libvirt groups, default shell set to /bin/bash.${Color_Off}"
 echo "$USERNAME:$PASSWORD" | chpasswd
@@ -771,27 +719,22 @@ echo -e "${Green}Hostname set to: ${NAME_OF_MACHINE}.${Color_Off}"
 
 if [[ "${FS}" == "luks" ]]; then
     echo -e "${BCyan}--- Configuring mkinitcpio for LUKS Encryption ---${Color_Off}"
-    echo -e "${Blue}Adding 'encrypt' hook to mkinitcpio.conf...${Color_Off}"
     sed -i '/^HOOKS=/s/filesystems/encrypt filesystems/' /etc/mkinitcpio.conf
-    echo -e "${Blue}Generating new initramfs...${Color_Off}"
     mkinitcpio -p linux-lts
     echo -e "${Green}Initramfs generated with LUKS support.${Color_Off}"
 fi
 
 echo -e "${BCyan}--- GRUB Bootloader Configuration ---${Color_Off}"
 if [[ -d "/sys/firmware/efi" ]]; then
-    echo -e "${Blue}Installing GRUB for UEFI...${Color_Off}"
     grub-install --efi-directory=/boot --target=x86_64-efi --bootloader-id=ArchLinux --recheck ${DISK}
     echo -e "${Green}GRUB UEFI installation complete.${Color_Off}"
 fi
 
 echo -e "${Blue}Configuring GRUB kernel parameters...${Color_Off}"
 if [[ "${FS}" == "luks" ]]; then
-    echo -e "${Blue}Adding LUKS decryption parameters to GRUB_CMDLINE_LINUX_DEFAULT...${Color_Off}"
     sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
 fi
-echo -e "${Blue}Adding 'splash' to GRUB_CMDLINE_LINUX_DEFAULT...${Color_Off}"
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
+grep -q "splash" /etc/default/grub || sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
 
 echo -e "${Blue}Updating grub configuration file...${Color_Off}"
 grub-mkconfig -o /boot/grub/grub.cfg
@@ -808,22 +751,20 @@ echo -e "${Green}NetworkManager service enabled.${Color_Off}"
 systemctl enable reflector.timer
 echo -e "${Green}Reflector timer enabled.${Color_Off}"
 
-
 if [[ "${HYPRLAND_DOTS_CHOICE}" == "yes" ]]; then
     echo -e "${BCyan}--- Hyprland with HyDE Dots Installation ---${Color_Off}"
-    echo -e "${Blue}Ensuring git is installed for cloning dotfiles...${Color_Off}"
     pacman -S --noconfirm --needed git
 
     echo -e "${Blue}Cloning HyDE-Project dotfiles...${Color_Off}"
     cd /home/"$USERNAME" || { echo -e "${BRed}ERROR: Could not change to user home directory /home/${USERNAME}.${Color_Off}"; exit 1; }
     
     echo -e "${Yellow}Cloning HyDE dotfiles to /home/${USERNAME}/HyDE... This might take a while.${Color_Off}"
-    sudo -u "$USERNAME" git clone https://github.com/HyDE-Project/HyDE.git
+    sudo -u "$USERNAME" git clone https://github.com/HyDE-Project/HyDE.git || { echo -e "${BRed}ERROR: Failed to clone HyDE dotfiles.${Color_Off}"; exit 1; }
     
     cd /home/"$USERNAME"/HyDE || { echo -e "${BRed}ERROR: Could not change to HyDE directory.${Color_Off}"; exit 1; }
     
     echo -e "${Blue}Executing HyDE dotfiles install script as user '${USERNAME}'...${Color_Off}"
-    sudo -u "$USERNAME" bash ./install.sh
+    sudo -u "$USERNAME" bash ./install.sh || { echo -e "${BRed}ERROR: HyDE install script failed.${Color_Off}"; }
     
     echo -e "${Blue}Cleaning up cloned HyDE repository...${Color_Off}"
     cd /home/"$USERNAME" || true
@@ -836,10 +777,8 @@ else
 fi
 
 echo -e "${BCyan}--- Cleaning Up Sudoers and Finalizing ---${Color_Off}"
-echo -e "${Blue}Removing NOPASSWD for wheel group.${Color_Off}"
 sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-echo -e "${Blue}Enabling standard sudo rights for wheel group.${Color_Off}"
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 echo -e "${Green}Sudoers configuration finalized.${Color_Off}"
@@ -847,9 +786,9 @@ echo -e "${Green}Sudoers configuration finalized.${Color_Off}"
 echo -e "${Green}Arch Linux installation complete!${Color_Off}"
 EOF
 
+---
 display_section_title "Installation Complete"
 logo
 echo -e "${Green}Your Arch Linux system has been successfully installed.${Color_Off}"
 echo -e "${BBlue}You can now reboot into your new system.${Color_Off}"
-read -r -p "${BBlue}Press Enter to reboot, or Ctrl+C to stay in the ISO environment.${Color_Off}"
-reboot now
+read -r -p "${BYellow}Press Enter to finish and trigger cleanup...${Color_Off}"
