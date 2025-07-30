@@ -63,15 +63,15 @@ exec > >(tee -i archsetup.log) 2>&1
 
 echo -ne "${BYellow}
 -------------------------------------------------------------------------
-                                                                                   
+                                                                                
    _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
  _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
-                                                                                   
-                                                                                                                                            
-                          CTOR
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|    
+
+ 
+                                 CTOR
 -------------------------------------------------------------------------
         Automated Arch Linux Setup - Initializing
 -------------------------------------------------------------------------
@@ -81,19 +81,19 @@ Verifying Arch Linux ISO environment...
 
 check_environment() {
     if [ ! -f /usr/bin/pacstrap ]; then
-        echo "${Red}Error: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
+        echo -e "${Red}Error: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
         exit 1
     fi
     if [[ "$(id -u)" != "0" ]]; then
-        echo "${Red}Error: This script requires root privileges. Please run as root. Exiting.${Color_Off}"
+        echo -e "${Red}Error: This script requires root privileges. Please run as root. Exiting.${Color_Off}"
         exit 1
     fi
     if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r || [[ -f /.dockerenv ]]; then
-        echo "${Red}Error: Running inside a Docker container is not supported. Exiting.${Color_Off}"
+        echo -e "${Red}Error: Running inside a Docker container is not supported. Exiting.${Color_Off}"
         exit 1
     fi
     if [[ -f /var/lib/pacman/db.lck ]]; then
-        echo "${Red}Error: Pacman database is locked. If no other Pacman process is running, remove /var/lib/pacman/db.lck. Exiting.${Color_Off}"
+        echo -e "${Red}Error: Pacman database is locked. If no other Pacman process is running, remove /var/lib/pacman/db.lck. Exiting.${Color_Off}"
         exit 1
     fi
 }
@@ -140,14 +140,14 @@ select_interactive_option() {
 display_section_header() {
 echo -ne "${BYellow}
 ------------------------------------------------------------------------
-                                                                                   
+                                                                        
    _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
  _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
-                                                                                   
-                                                                                   
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|     
+                                                                        
+                                                                        
 ------------------------------------------------------------------------
         Setup Configuration: Choose your preferences
 ------------------------------------------------------------------------
@@ -174,14 +174,14 @@ ${Color_Off}"
             echo
 
             if [[ "$LUKS_PASSWORD_1" != "$LUKS_PASSWORD_2" ]]; then
-                echo "${Red}Error: Passwords do not match. Please try again.${Color_Off}"
+                echo -e "${Red}Error: Passwords do not match. Please try again.${Color_Off}"
                 select_filesystem
             else
                 export LUKS_PASSWORD="$LUKS_PASSWORD_1"
                 export FS="luks"
             fi
             ;;
-        *) echo "${Red}Invalid option. Please select again.${Color_Off}"; select_filesystem;;
+        *) echo -e "${Red}Invalid option. Please select again.${Color_Off}"; select_filesystem;;
     esac
 }
 
@@ -197,26 +197,26 @@ ${Color_Off}"
         0)
             export HYPR_DOTS="End-4"
             export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
-            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/dots-hyprland && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/dots-hyprland"
+            export HYPR_INSTALL_COMMAND="cd ${HYPR_DOTS_DIR} && ./install.sh"
             ;;
         1)
             export HYPR_DOTS="HyDE"
             export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
-            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyDE/Scripts && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyDE"
+            export HYPR_INSTALL_COMMAND="cd ${HYPR_DOTS_DIR}/Scripts && ./install.sh"
             ;;
         2)
             export HYPR_DOTS="Hyprluna"
             export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
-            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyprLuna && ./install.sh"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Downloads/HyprLuna"
+            export HYPR_INSTALL_COMMAND="cd ${HYPR_DOTS_DIR} && ./install.sh"
             ;;
         3)
             export HYPR_DOTS="Caelestia"
             export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia"
-            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
-            export HYPR_INSTALL_COMMAND="fish ~/Hyprland-archfast/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
+            export HYPR_DOTS_DIR="/.local/share/caelestia"
+            export HYPR_INSTALL_COMMAND="fish ${HYPR_DOTS_DIR}/install.fish --noconfirm --spotify --vscode=code --discord --zen"
             ;;
         4)
             export HYPR_DOTS="None"
@@ -225,7 +225,7 @@ ${Color_Off}"
             export HYPR_INSTALL_COMMAND=""
             ;;
         *)
-            echo "${Red}Invalid option. Please select again.${Color_Off}"
+            echo -e "${Red}Invalid option. Please select again.${Color_Off}"
             select_hyprland_dots
             ;;
     esac
@@ -243,7 +243,7 @@ ${Color_Off}"
     case $choice in
         0) export CHROOT_SHELL="/bin/bash"; export SHELL_NAME="bash";;
         1) export CHROOT_SHELL="/usr/bin/fish"; export SHELL_NAME="fish";;
-        *) echo "${Red}Invalid option. Please select again.${Color_Off}"; select_shell;;
+        *) echo -e "${Red}Invalid option. Please select again.${Color_Off}"; select_shell;;
     esac
     echo -ne "Chroot shell set to: ${SHELL_NAME}\n"
 }
@@ -261,12 +261,12 @@ ${Color_Off}"
     case $choice in
         0) export TIMEZONE="$detected_timezone"; echo "Timezone set to: ${TIMEZONE}";;
         1)
-            echo "Please enter your desired timezone (e.g., Europe/London or Asia/Manila):"
+            echo "Please enter your desired timezone (e.g., America/New_York or Asia/Manila):"
             read -r new_timezone
             export TIMEZONE="$new_timezone"
             echo "Timezone set to: ${TIMEZONE}"
             ;;
-        *) echo "${Red}Invalid option. Please try again.${Color_Off}"; set_timezone;;
+        *) echo -e "${Red}Invalid option. Please try again.${Color_Off}"; set_timezone;;
     esac
 }
 
@@ -291,7 +291,7 @@ ${Color_Off}"
     case $choice in
         0) export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120";;
         1) export MOUNT_OPTIONS="noatime,compress=zstd,commit=120";;
-        *) echo "${Red}Invalid option. Please try again.${Color_Off}"; choose_drive_type;;
+        *) echo -e "${Red}Invalid option. Please try again.${Color_Off}"; choose_drive_type;;
     esac
 }
 
@@ -321,7 +321,7 @@ gather_user_info() {
         if [[ "${USERNAME,,}" =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]]; then
             break
         fi
-        echo "${Red}Invalid username. Usernames must start with a lowercase letter or underscore, and can contain lowercase letters, digits, underscores, or hyphens (max 31 chars).${Color_Off}"
+        echo -e "${Red}Invalid username. Usernames must start with a lowercase letter or underscore, and can contain lowercase letters, digits, underscores, or hyphens (max 31 chars).${Color_Off}"
     done
 
     while true; do
@@ -333,7 +333,7 @@ gather_user_info() {
             export PASSWORD="$PASSWORD_1"
             break
         else
-            echo "${Red}Error: Passwords do not match. Please try again.${Color_Off}"
+            echo -e "${Red}Error: Passwords do not match. Please try again.${Color_Off}"
         fi
     done
 
@@ -395,17 +395,17 @@ format_and_mount_disks() {
     mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
 
     if [[ "${FS}" == "btrfs" ]]; then
-        mkfs.btrfs -f "${partition3}"
+        mkfs.btrfs -f -L ROOT "${partition3}"
         mount -t btrfs "${partition3}" /mnt
         setup_btrfs_subvolumes
     elif [[ "${FS}" == "ext4" ]]; then
-        mkfs.ext4 "${partition3}"
+        mkfs.ext4 -L ROOT "${partition3}"
         mount -t ext4 "${partition3}" /mnt
     elif [[ "${FS}" == "luks" ]]; then
         echo "Encrypting root partition with LUKS..."
         echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
         echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" cryptroot -
-        mkfs.btrfs /dev/mapper/cryptroot
+        mkfs.btrfs -L ROOT /dev/mapper/cryptroot
         mount -t btrfs /dev/mapper/cryptroot /mnt
         setup_btrfs_subvolumes
         export ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
@@ -415,7 +415,7 @@ format_and_mount_disks() {
     sync
 
     if ! mountpoint -q /mnt; then
-        echo "${Red}Error: Failed to mount root partition to /mnt. Rebooting in 5 seconds...${Color_Off}"
+        echo -e "${Red}Error: Failed to mount root partition to /mnt. Rebooting in 5 seconds...${Color_Off}"
         sleep 5
         reboot now
     fi
@@ -423,7 +423,7 @@ format_and_mount_disks() {
     mount -U "${BOOT_UUID}" /mnt/boot/
 
     if ! grep -qs '/mnt' /proc/mounts; then
-        echo "${Red}Error: Drive is not mounted correctly. Cannot continue. Rebooting in 5 seconds...${Color_Off}"
+        echo -e "${Red}Error: Drive is not mounted correctly. Cannot continue. Rebooting in 5 seconds...${Color_Off}"
         sleep 5
         reboot now
     fi
@@ -448,14 +448,9 @@ install_base_system() {
 chroot_configuration() {
     local gpu_type=$(lspci | grep -E "VGA|3D|Display")
     local total_mem_kb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
-    local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
+    local cpu_cores=$(nproc)
 
     arch-chroot /mnt pacman -S --noconfirm --needed networkmanager dhcpcd pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget fish
-
-    if [[ "${SHELL_NAME}" == "fish" ]]; then
-        arch-chroot /mnt pacman -S --noconfirm --needed fish
-        arch-chroot /mnt chsh -s /usr/bin/fish ${USERNAME}
-    fi
 
     arch-chroot /mnt /bin/bash -c "
         echo 'Setting up network...'
@@ -466,7 +461,7 @@ chroot_configuration() {
 
         echo 'Configuring MAKEFLAGS for ${cpu_cores} cores and XZ compression...'
         if [[ ${total_mem_kb} -gt 8000000 ]]; then
-            sed -i \"s/#MAKEFLAGS=\\\"-j2\\\"/MAKEFLAGS=\\\"-j${cpu_cores}\\\"/g\" /etc/makepkg.conf
+            sed -i \"s/#MAKEFLAGS=\\\\\\\"-j2\\\\\\\"/MAKEFLAGS=\\\\\\\"-j${cpu_cores}\\\\\\\"/g\" /etc/makepkg.conf
             sed -i \"s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T ${cpu_cores} -z -)/g\" /etc/makepkg.conf
         fi
 
@@ -522,7 +517,7 @@ chroot_configuration() {
 
         echo 'Creating user account...'
         groupadd libvirt
-        useradd -m -G wheel,libvirt -s /bin/bash ${USERNAME}
+        useradd -m -G wheel,libvirt -s ${CHROOT_SHELL} ${USERNAME}
         echo \"User ${USERNAME} created and configured.\"
         echo \"${USERNAME}:${PASSWORD}\" | chpasswd
         echo \"Password set for ${USERNAME}.\"
@@ -536,15 +531,15 @@ chroot_configuration() {
             fi
 
             local dotfiles_clone_target=\"${HYPR_DOTS_DIR}\"
-            mkdir -p \"${dotfiles_clone_target}\"
-            chown -R ${USERNAME}:${USERNAME} \"${dotfiles_clone_target}\"
+            mkdir -p \"\$(dirname \"\${dotfiles_clone_target}\")\"
+            chown -R ${USERNAME}:${USERNAME} \"\$(dirname \"\${dotfiles_clone_target}\")\"
 
-            echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${dotfiles_clone_target}...\"
-            if ! su - ${USERNAME} -c \"git clone --depth 1 \\\"${HYPR_DOTS_URL}\\\" \\\"${dotfiles_clone_target}\\\"\"; then
+            echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into \${dotfiles_clone_target}...\"
+            if ! su - ${USERNAME} -c \"git clone --depth 1 \\\"${HYPR_DOTS_URL}\\\" \\\"\${dotfiles_clone_target}\\\"\"; then
                 echo \"${Red}CRITICAL ERROR: Failed to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.${Color_Off}\"
                 exit 1
             fi
-            echo \"${HYPR_DOTS} dotfiles downloaded to ${dotfiles_clone_target}.\"
+            echo \"${HYPR_DOTS} dotfiles downloaded to \${dotfiles_clone_target}.\"
 
             echo \"Attempting to run ${HYPR_DOTS} installer: ${HYPR_INSTALL_COMMAND}\"
             if ! su - ${USERNAME} -c \"${HYPR_INSTALL_COMMAND}\"; then
@@ -555,20 +550,23 @@ chroot_configuration() {
 
         if [[ ${FS} == \"luks\" ]]; then
             echo 'Configuring mkinitcpio for LUKS encryption...'
-            sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-            mkinitcpio -p linux-lts
+            
+            sed -i 's/ block filesystems/ block encrypt filesystems/' /etc/mkinitcpio.conf
+            mkinitcpio -P
         fi
 
         echo 'Setting up GRUB bootloader...'
         if [[ -d \"/sys/firmware/efi\" ]]; then
-            grub-install --efi-directory=/boot ${DISK}
+         
+            grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
         else
-            grub-install --boot-directory=/boot ${DISK}
+
+            grub-install --target=i386-pc ${DISK}
         fi
 
         echo 'Generating GRUB configuration...'
         if [[ \"${FS}\" == \"luks\" ]]; then
-            sed -i \"s/GRUB_CMDLINE_LINUX_DEFAULT=\\\"/GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=\/dev\/mapper\/cryptroot /g\" /etc/default/grub
+            sed -i \"s/GRUB_CMDLINE_LINUX_DEFAULT=\\\"/GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=\\/dev\\/mapper\\/cryptroot /g\" /etc/default/grub
         fi
         sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"[^\\\"]*/& splash /' /etc/default/grub
         grub-mkconfig -o /boot/grub/grub.cfg
@@ -632,13 +630,13 @@ main() {
 
     clear
     display_section_header
-    select_hyprland_dots
+    select_shell
 
     clear
     display_section_header
-    select_shell
+    select_hyprland_dots
 
-    echo "${BCyan}--- System Preparation ---${Color_Off}"
+    echo -e "${BCyan}--- System Preparation ---${Color_Off}"
     timedatectl set-ntp true
     pacman -Sy
     pacman -S --noconfirm archlinux-keyring pacman-contrib terminus-font reflector rsync grub gptfdisk btrfs-progs glibc --needed
@@ -650,20 +648,20 @@ main() {
     cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
     reflector -a 48 -c "$country_code" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
     if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-        echo "${Yellow}Less than 5 mirrors found. Reverting to backup mirrorlist.${Color_Off}"
+        echo -e "${Yellow}Less than 5 mirrors found. Reverting to backup mirrorlist.${Color_Off}"
         cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
     fi
 
-    echo "${BCyan}--- Partitioning and Formatting Disks ---${Color_Off}"
+    echo -e "${BCyan}--- Partitioning and Formatting Disks ---${Color_Off}"
     format_and_mount_disks
 
-    echo "${BCyan}--- Installing Arch Linux Base System ---${Color_Off}"
+    echo -e "${BCyan}--- Installing Arch Linux Base System ---${Color_Off}"
     install_base_system
 
-    echo "${BCyan}--- Creating Swap File (if needed) ---${Color_Off}"
+    echo -e "${BCyan}--- Creating Swap File (if needed) ---${Color_Off}"
     create_swap_if_needed
 
-    echo "${BCyan}--- Configuring Installed System (chroot) ---${Color_Off}"
+    echo -e "${BCyan}--- Configuring Installed System (chroot) ---${Color_Off}"
     chroot_configuration
 
     echo "Unmounting partitions..."
@@ -671,15 +669,15 @@ main() {
 
     echo -ne "${BYellow}
 -------------------------------------------------------------------------
-                                                                                   
+                                                                        
    _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
  _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
-                                                                                   
-                                                                                   
-                           CTOR
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|        
+                                                                        
+                                                                        
+                                 CTOR
 -------------------------------------------------------------------------
         Arch Linux Installation Complete! 🎉
 -------------------------------------------------------------------------
@@ -687,28 +685,17 @@ ${Color_Off}"
 
     if [[ "${HYPR_DOTS}" != "None" ]]; then
         echo ""
-        echo "${BGreen}==================================================================${Color_Off}"
-        echo "${BGreen}  Next Step: Install Hyprland Dotfiles. ${Color_Off}"
-        echo "${BGreen}==================================================================${Color_Off}"
-        echo "Your selected Hyprland dotfiles (${HYPR_DOTS}) have been downloaded."
-
-        if [[ "${HYPR_DOTS}" == "Caelestia" ]]; then
-            echo "Caelestia dotfiles are located at: ${BYellow}~/.local/share/caelestia${Color_Off}"
-            echo "To install Caelestia, log into your new Arch system as '${USERNAME}' and run:"
-            echo "  ${BBlue}cd ~/.local/share/caelestia${Color_Off}"
-            echo "  ${BBlue}./install.fish --noconfirm --spotify --vscode=code --discord --zen${Color_Off}"
-            echo "(Note: You will need to switch to fish shell if you chose bash as primary, or just run the .fish script directly)"
-        else
-            echo "The dotfiles are located in your new system's Downloads directory:"
-            echo "  ${BYellow}${HYPR_DOTS_DIR}${Color_Off}"
-            echo "To install them, log into your new Arch system as '${USERNAME}' and run:"
-            echo "  ${BBlue}${HYPR_INSTALL_COMMAND}${Color_Off}"
-        fi
-
+        echo -e "${BGreen}==================================================================${Color_Off}"
+        echo -e "${BGreen}  Next Step: Log in and finalize Hyprland setup. ${Color_Off}"
+        echo -e "${BGreen}==================================================================${Color_Off}"
+        echo "Your selected Hyprland dotfiles (${HYPR_DOTS}) have been downloaded and the installer has been run."
+        echo "After rebooting, log in as '${USERNAME}' to see your new desktop."
         echo ""
-        echo "Remember to reboot your system and log in as '${USERNAME}' to complete the setup."
+        echo "If the theme is not fully applied or if things seem amiss, you may need to re-run the"
+        echo "installer script located in the dotfiles directory:"
+        echo -e "  ${BYellow}${HYPR_DOTS_DIR}${Color_Off}"
     else
-        echo "No Hyprland dotfiles were selected for download."
+        echo "No Hyprland dotfiles were selected for installation."
     fi
 
     echo ""
