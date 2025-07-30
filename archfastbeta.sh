@@ -114,6 +114,10 @@ select_option() {
     local selected=0
     local last_selected=-1
 
+    local old_stty_settings
+    old_stty_settings=$(stty -g)
+    stty -echo raw
+
     while true; do
         if [ "$last_selected" -ne -1 ]; then
             echo -ne "\033[${num_options}A"
@@ -129,7 +133,11 @@ select_option() {
 
         last_selected=$selected
 
-        read -rsn1 key
+        read -rsn1 -t 0.1 key
+        if [[ -z "$key" ]]; then
+            continue
+        fi
+
         case $key in
             $'\x1b')
                 read -rsn2 -t 0.1 key_arrow
@@ -146,14 +154,29 @@ select_option() {
                             selected=0
                         fi
                         ;;
+                    *)
+                        ;;
                 esac
                 ;;
             '')
                 break
                 ;;
+            $'\x03')
+                echo -e "\n${BRed}Ctrl+C detected. Exiting...${Color_Off}"
+                stty "$old_stty_settings"
+                exit 1
+                ;;
+            $'\x04')
+                echo -e "\n${BRed}Ctrl+D detected. Exiting...${Color_Off}"
+                stty "$old_stty_settings"
+                exit 1
+                ;;
+            *)
+                ;;
         esac
     done
 
+    stty "$old_stty_settings"
     return "$selected"
 }
 
