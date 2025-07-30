@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# ANSI Color Codes
 Color_Off="\033[0m"
 Black="\033[0;30m"
 Red="\033[0;31m"
@@ -58,233 +59,292 @@ On_IPurple="\033[10;95m"
 On_ICyan="\033[0;106m"
 On_IWhite="\033[0;107m"
 
-exec > >(tee -i archsetup.txt)
-exec 2>&1
+exec > >(tee -i archsetup.log) 2>&1
 
-echo -e "${BBlue}-------------------------------------------------------------------------${Color_Off}"
-echo -e "${BCyan}                  Automated Arch Linux Installer${Color_Off}"
-echo -e "${BBlue}-------------------------------------------------------------------------${Color_Off}"
-echo ""
-echo "Verifying Arch Linux ISO is Booted..."
+echo -ne "${BYellow}
+-------------------------------------------------------------------------
+                                                                                   
+   _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
+ _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
+                                                                                   
+                                                                                                                                            
+                          CTOR
+-------------------------------------------------------------------------
+        Automated Arch Linux Setup - Initializing
+-------------------------------------------------------------------------
+${Color_Off}
+Verifying Arch Linux ISO environment...
+"
 
-if ! command -v pacstrap &> /dev/null; then
-    echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment.${Color_Off}"
-    exit 1
-fi
-
-check_root() {
-    if [[ "$(id -u)" -ne 0 ]]; then
-        echo -e "${BRed}ERROR: This script must be run as the 'root' user!${Color_Off}"
+check_environment() {
+    if [ ! -f /usr/bin/pacstrap ]; then
+        echo "${Red}Error: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
         exit 1
     fi
-}
-
-check_docker() {
-    if awk -F/ '$2 == "docker"' /proc/self/cgroup | grep -q .; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment).${Color_Off}"
-        exit 1
-    elif [[ -f /.dockerenv ]]; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment).${Color_Off}"
+    if [[ "$(id -u)" != "0" ]]; then
+        echo "${Red}Error: This script requires root privileges. Please run as root. Exiting.${Color_Off}"
         exit 1
     fi
-}
-
-check_arch_env() {
-    if [[ ! -e /etc/arch-release ]]; then
-        echo -e "${BRed}ERROR: This script must be run in Arch Linux!${Color_Off}"
+    if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r || [[ -f /.dockerenv ]]; then
+        echo "${Red}Error: Running inside a Docker container is not supported. Exiting.${Color_Off}"
         exit 1
     fi
-}
-
-check_pacman_lock() {
     if [[ -f /var/lib/pacman/db.lck ]]; then
-        echo -e "${BRed}ERROR: Pacman is blocked. If not running, remove /var/lib/pacman/db.lck.${Color_Off}"
+        echo "${Red}Error: Pacman database is locked. If no other Pacman process is running, remove /var/lib/pacman/db.lck. Exiting.${Color_Off}"
         exit 1
     fi
 }
 
-run_initial_checks() {
-    check_root
-    check_arch_env
-    check_pacman_lock
-    check_docker
-}
-
-select_option() {
+select_interactive_option() {
     local options=("$@")
     local num_options=${#options[@]}
     local selected=0
     local last_selected=-1
 
     while true; do
-        if [ "$last_selected" -ne -1 ]; then
-            printf "\033[${num_options}A"
+        if [ $last_selected -ne -1 ]; then
+            echo -ne "\033[${num_options}A"
         fi
 
-        echo "Please select an option using the arrow keys and Enter:"
+        if [ $last_selected -eq -1 ]; then
+            echo "Use arrow keys and Enter to select an option:"
+        fi
         for i in "${!options[@]}"; do
-            if [ "$i" -eq "$selected" ]; then
-                echo -e "${BGreen}> ${options[$i]}${Color_Off}"
+            if [ "$i" -eq $selected ]; then
+                echo "> ${options[$i]}"
             else
-                echo -e "  ${options[$i]}"
+                echo "  ${options[$i]}"
             fi
         done
 
         last_selected=$selected
 
-        IFS= read -rsn1 key
-        case "$key" in
+        read -rsn1 key
+        case $key in
             $'\x1b')
-                IFS= read -rsn2 -t 0.1 key_arrow
-                case "$key_arrow" in
-                    '[A')
-                        ((selected = (selected - 1 + num_options) % num_options))
-                        ;;
-                    '[B')
-                        ((selected = (selected + 1) % num_options))
-                        ;;
+                read -rsn2 -t 0.1 key
+                case $key in
+                    '[A') ((selected--)); if [ $selected -lt 0 ]; then selected=$((num_options - 1)); fi ;;
+                    '[B') ((selected++)); if [ $selected -ge $num_options ]; then selected=0; fi ;;
                 esac
                 ;;
-            '')
-                break
-                ;;
+            '') break ;;
         esac
     done
-
-    return "$selected"
+    return $selected
 }
 
-display_header() {
-    echo -e "${BBlue}-------------------------------------------------------------------------${Color_Off}"
-    echo -e "${BCyan}            $1${Color_Off}"
-    echo -e "${BBlue}-------------------------------------------------------------------------${Color_Off}"
+display_section_header() {
+echo -ne "${BYellow}
+------------------------------------------------------------------------
+                                                                                   
+   _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
+ _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
+                                                                                   
+                                                                                   
+------------------------------------------------------------------------
+        Setup Configuration: Choose your preferences
+------------------------------------------------------------------------
+${Color_Off}"
 }
 
-set_filesystem() {
-    display_header "File System Selection"
-    echo "Please select your file system for both boot and root:"
-    options=("btrfs" "ext4" "luks" "exit")
-    select_option "${options[@]}"
-    local choice_idx=$?
+select_filesystem() {
+    echo -ne "${BCyan}
+Please select your file system for both boot and root partitions:
+${Color_Off}"
+    local options=("btrfs" "ext4" "luks (encrypted Btrfs)")
+    select_interactive_option "${options[@]}"
+    local choice=$?
 
-    case ${options[$choice_idx]} in
-    btrfs) export FS="btrfs";;
-    ext4) export FS="ext4";;
-    luks)
-        read -s -p "Enter LUKS password: " LUKS_PASSWORD
-        echo
-        read -s -p "Confirm LUKS password: " LUKS_PASSWORD_CONFIRM
-        echo
-        if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD_CONFIRM" ]]; then
-            echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
-            set_filesystem
-        fi
-        export FS="luks"
-        ;;
-    exit) exit 0;;
-    *) echo -e "${BRed}Invalid option. Please try again.${Color_Off}"; set_filesystem;;
+    case $choice in
+        0) export FS="btrfs";;
+        1) export FS="ext4";;
+        2)
+            echo -n "Enter LUKS encryption password: "
+            read -rs LUKS_PASSWORD_1
+            echo
+            echo -n "Re-enter LUKS encryption password: "
+            read -rs LUKS_PASSWORD_2
+            echo
+
+            if [[ "$LUKS_PASSWORD_1" != "$LUKS_PASSWORD_2" ]]; then
+                echo "${Red}Error: Passwords do not match. Please try again.${Color_Off}"
+                select_filesystem
+            else
+                export LUKS_PASSWORD="$LUKS_PASSWORD_1"
+                export FS="luks"
+            fi
+            ;;
+        *) echo "${Red}Invalid option. Please select again.${Color_Off}"; select_filesystem;;
     esac
 }
 
+select_hyprland_dots() {
+    echo -ne "${BCyan}
+Please select a Hyprland dotfiles configuration to install (or skip):
+${Color_Off}"
+    local options=("End-4" "HyDE" "Hyprluna" "Caelestia" "Skip")
+    select_interactive_option "${options[@]}"
+    local choice=$?
+
+    case $choice in
+        0)
+            export HYPR_DOTS="End-4"
+            export HYPR_DOTS_URL="https://github.com/end-4/dots-hyprland"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/dots-hyprland && ./install.sh"
+            ;;
+        1)
+            export HYPR_DOTS="HyDE"
+            export HYPR_DOTS_URL="https://github.com/HyDE-Project/HyDE"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyDE/Scripts && ./install.sh"
+            ;;
+        2)
+            export HYPR_DOTS="Hyprluna"
+            export HYPR_DOTS_URL="https://github.com/Lunaris-Project/HyprLuna"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="cd ~/Hyprland-archfast/HyprLuna && ./install.sh"
+            ;;
+        3)
+            export HYPR_DOTS="Caelestia"
+            export HYPR_DOTS_URL="https://github.com/caelestia-dots/caelestia"
+            export HYPR_DOTS_DIR="/home/${USERNAME}/Hyprland-archfast/"
+            export HYPR_INSTALL_COMMAND="fish ~/Hyprland-archfast/caelestia/install.fish --noconfirm --spotify --vscode=code --discord --zen"
+            ;;
+        4)
+            export HYPR_DOTS="None"
+            export HYPR_DOTS_URL=""
+            export HYPR_DOTS_DIR=""
+            export HYPR_INSTALL_COMMAND=""
+            ;;
+        *)
+            echo "${Red}Invalid option. Please select again.${Color_Off}"
+            select_hyprland_dots
+            ;;
+    esac
+    echo -ne "Hyprland dotfiles set to: ${HYPR_DOTS}\n"
+}
+
+select_shell() {
+    echo -ne "${BCyan}
+Please select the shell to use in the chroot environment:
+${Color_Off}"
+    local options=("bash" "fish")
+    select_interactive_option "${options[@]}"
+    local choice=$?
+
+    case $choice in
+        0) export CHROOT_SHELL="/bin/bash"; export SHELL_NAME="bash";;
+        1) export CHROOT_SHELL="/usr/bin/fish"; export SHELL_NAME="fish";;
+        *) echo "${Red}Invalid option. Please select again.${Color_Off}"; select_shell;;
+    esac
+    echo -ne "Chroot shell set to: ${SHELL_NAME}\n"
+}
+
 set_timezone() {
-    display_header "Timezone Configuration"
-    local detected_timezone=$(curl --fail https://ipapi.co/timezone 2>/dev/null)
-    if [[ -z "$detected_timezone" ]]; then
-        echo -e "${BYellow}Could not auto-detect timezone. Please enter manually.${Color_Off}"
-        read -r -p "Enter your desired timezone (e.g., Europe/London): " new_timezone
-        export TIMEZONE="$new_timezone"
-    else
-        echo "System detected your timezone to be '$detected_timezone'."
-        echo "Is this correct?"
-        options=("Yes" "No")
-        select_option "${options[@]}"
-        local choice_idx=$?
-        if [[ "${options[$choice_idx]}" == "Yes" ]]; then
-            export TIMEZONE="$detected_timezone"
-        else
-            read -r -p "Please enter your desired timezone (e.g., Europe/London): " new_timezone
+    local detected_timezone=$(curl --fail --silent https://ipapi.co/timezone)
+    echo -ne "${BCyan}
+System detected your timezone as: '${detected_timezone}'
+Is this correct?
+${Color_Off}"
+    local options=("Yes" "No")
+    select_interactive_option "${options[@]}"
+    local choice=$?
+
+    case $choice in
+        0) export TIMEZONE="$detected_timezone"; echo "Timezone set to: ${TIMEZONE}";;
+        1)
+            echo "Please enter your desired timezone (e.g., Europe/London or Asia/Manila):"
+            read -r new_timezone
             export TIMEZONE="$new_timezone"
-        fi
-    fi
-    echo -e "${BGreen}Timezone set to: $TIMEZONE${Color_Off}"
+            echo "Timezone set to: ${TIMEZONE}"
+            ;;
+        *) echo "${Red}Invalid option. Please try again.${Color_Off}"; set_timezone;;
+    esac
 }
 
 set_keymap() {
-    display_header "Keyboard Layout Selection"
-    echo "Please select your keyboard layout from this list:"
+    echo -ne "${BCyan}
+Select your keyboard layout from the list below:
+${Color_Off}"
     local options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
-    select_option "${options[@]}"
+    select_interactive_option "${options[@]}"
     export KEYMAP="${options[$?]}"
-    echo -e "${BGreen}Keyboard layout set to: ${KEYMAP}${Color_Off}"
+    echo -ne "Keyboard layout set to: ${KEYMAP}\n"
 }
 
-set_drive_ssd_status() {
-    display_header "Drive Type"
-    echo "Is this an SSD?"
-    options=("Yes" "No")
-    select_option "${options[@]}"
-    local choice_idx=$?
+choose_drive_type() {
+    echo -ne "${BCyan}
+Is this an SSD (Solid State Drive)?
+${Color_Off}"
+    local options=("Yes" "No")
+    select_interactive_option "${options[@]}"
+    local choice=$?
 
-    if [[ "${options[$choice_idx]}" == "Yes" ]]; then
-        export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
-        echo -e "${BGreen}Drive type set to SSD.${Color_Off}"
-    else
-        export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
-        echo -e "${BGreen}Drive type set to HDD/other.${Color_Off}"
-    fi
+    case $choice in
+        0) export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120";;
+        1) export MOUNT_OPTIONS="noatime,compress=zstd,commit=120";;
+        *) echo "${Red}Invalid option. Please try again.${Color_Off}"; choose_drive_type;;
+    esac
 }
 
-select_disk_for_installation() {
-    display_header "Disk Selection - WARNING: DATA WILL BE ERASED!"
-    echo -e "${BRed}-------------------------------------------------------------------------${Color_Off}"
-    echo -e "${BRed}    THIS WILL FORMAT AND DELETE ALL DATA ON THE DISK!${Color_Off}"
-    echo -e "${BRed}    Please make sure you know what you are doing because${Color_Off}"
-    echo -e "${BRed}    after formatting your disk there is no way to get data back.${Color_Off}"
-    echo -e "${BRed}    *****BACKUP YOUR DATA BEFORE CONTINUING*****${Color_Off}"
-    echo -e "${BRed}    ***I AM NOT RESPONSIBLE FOR ANY DATA LOSS***${Color_Off}"
-    echo -e "${BRed}-------------------------------------------------------------------------${Color_Off}"
-    echo ""
+select_disk() {
+echo -ne "${BRed}
+------------------------------------------------------------------------
+    *** CRITICAL WARNING: DISK SELECTION ***
+  This process will FORMAT and DELETE ALL DATA on the selected disk.
+  Ensure you have backed up any important data.
+  I AM NOT RESPONSIBLE FOR ANY DATA LOSS. Proceed with caution!
+------------------------------------------------------------------------
+${Color_Off}"
+    PS3='Select the disk to install Arch Linux on: '
+    local options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}'))
 
-    PS3='Select the disk to install on: '
-    local disk_options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2" ("$3")"}'))
+    select_interactive_option "${options[@]}"
+    local disk_choice=${options[$?]}
+    export DISK="${disk_choice%|*}"
 
-    select_option "${disk_options[@]}"
-    local selected_disk_info="${disk_options[$?]}"
-    export DISK=$(echo "$selected_disk_info" | awk '{print $1}')
-
-    echo -e "${BGreen}Selected disk: ${DISK}${Color_Off}"
-    set_drive_ssd_status
+    echo -e "\nSelected disk: ${DISK}\n"
+    choose_drive_type
 }
 
-set_user_info() {
-    display_header "User Information"
+gather_user_info() {
     while true; do
-        read -r -p "Please enter username: " USERNAME
-        if [[ "$USERNAME" =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]]; then
+        read -r -p "Enter a username for your new system: " USERNAME
+        if [[ "${USERNAME,,}" =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]]; then
             break
         fi
-        echo -e "${BRed}Invalid username. Usernames must start with a lowercase letter or underscore, and can contain lowercase letters, numbers, underscores, and hyphens (max 32 chars).${Color_Off}"
+        echo "${Red}Invalid username. Usernames must start with a lowercase letter or underscore, and can contain lowercase letters, digits, underscores, or hyphens (max 31 chars).${Color_Off}"
     done
 
     while true; do
-        read -rs -p "Please enter password: " PASSWORD
+        read -rs -p "Enter a strong password for your user: " PASSWORD_1
         echo
-        read -rs -p "Please re-enter password: " PASSWORD2
+        read -rs -p "Re-enter the password: " PASSWORD_2
         echo
-        if [[ "$PASSWORD" == "$PASSWORD2" ]]; then
+        if [[ "$PASSWORD_1" == "$PASSWORD_2" ]]; then
+            export PASSWORD="$PASSWORD_1"
             break
         else
-            echo -e "${BRed}ERROR: Passwords do not match. Please try again.${Color_Off}"
+            echo "${Red}Error: Passwords do not match. Please try again.${Color_Off}"
         fi
     done
 
     while true; do
-        read -r -p "Please name your machine (hostname): " NAME_OF_MACHINE
-        if [[ "$NAME_OF_MACHINE" =~ ^[a-z][a-z0-9_.-]{0,62}[a-z0-9]$ ]]; then
+        read -r -p "Enter a hostname for your machine: " NAME_OF_MACHINE
+        if [[ "${NAME_OF_MACHINE,,}" =~ ^[a-z][a-z0-9_.-]{0,62}[a-z0-9]$ ]]; then
             break
-        else
-            read -r -p "${BYellow}Hostname '$NAME_OF_MACHINE' doesn't seem correct. Do you still want to save it? (y/N) ${Color_Off}" force_hostname
-            [[ "${force_hostname,,}" == "y" ]] && break
+        fi
+        read -r -p "${Yellow}The hostname appears invalid. Do you still want to use it? (y/n): ${Color_Off}" force_hostname
+        if [[ "${force_hostname,,}" = "y" ]]; then
+            break
         fi
     done
 }
@@ -294,254 +354,367 @@ create_btrfs_subvolumes() {
     btrfs subvolume create /mnt/@home
 }
 
-mount_btrfs_subvolumes() {
+mount_all_btrfs_subvolumes() {
     mount -o "${MOUNT_OPTIONS}",subvol=@home "${partition3}" /mnt/home
 }
 
-btrfs_setup() {
+setup_btrfs_subvolumes() {
     create_btrfs_subvolumes
     umount /mnt
     mount -o "${MOUNT_OPTIONS}",subvol=@ "${partition3}" /mnt
     mkdir -p /mnt/home
-    mount_btrfs_subvolumes
+    mount_all_btrfs_subvolumes
 }
 
-run_initial_checks
+format_and_mount_disks() {
+    echo "Unmounting any existing mounts on /mnt..."
+    umount -A --recursive /mnt || true
 
-clear
-set_user_info
-clear
-set_keymap
-clear
-set_timezone
-clear
-select_disk_for_installation
-clear
-set_filesystem
+    echo "Preparing disk: ${DISK}"
+    sgdisk -Z "${DISK}"
+    sgdisk -a 2048 -o "${DISK}"
 
-display_header "Pre-installation Setup"
-echo "Setting up mirrors for optimal download..."
-local_country_code=$(curl -4 ifconfig.io/country_code 2>/dev/null || echo "US")
-timedatectl set-ntp true
-pacman -Sy --noconfirm
-pacman -S --noconfirm --needed archlinux-keyring
-pacman -S --noconfirm --needed pacman-contrib terminus-font
-setfont ter-v18b
-sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-pacman -S --noconfirm --needed reflector rsync grub
-cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+    sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
+    sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
+    sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
 
-echo -e "${BGreen}Setting up $local_country_code mirrors for faster downloads...${Color_Off}"
-reflector -a 48 -c "$local_country_code" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
-if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-    echo -e "${BYellow}Less than 5 mirrors found, restoring backup mirrorlist.${Color_Off}"
-    cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
-fi
-
-mkdir -p /mnt
-
-display_header "Installing Prerequisites"
-pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
-
-display_header "Formatting Disk: ${DISK}"
-umount -A --recursive /mnt
-
-sgdisk -Z "${DISK}"
-sgdisk -a 2048 -o "${DISK}"
-
-sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
-sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
-sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
-
-if [[ ! -d "/sys/firmware/efi" ]]; then
-    sgdisk -A 1:set:2 "${DISK}"
-fi
-partprobe "${DISK}"
-
-if [[ "${DISK}" =~ "nvme" ]]; then
-    partition2="${DISK}p2"
-    partition3="${DISK}p3"
-else
-    partition2="${DISK}2"
-    partition3="${DISK}3"
-fi
-
-display_header "Creating Filesystems"
-mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
-
-if [[ "${FS}" == "btrfs" ]]; then
-    mkfs.btrfs -f "${partition3}"
-    mount -t btrfs "${partition3}" /mnt
-    btrfs_setup
-elif [[ "${FS}" == "ext4" ]]; then
-    mkfs.ext4 -F "${partition3}"
-    mount -t ext4 "${partition3}" /mnt
-elif [[ "${FS}" == "luks" ]]; then
-    echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
-    echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-    mkfs.btrfs -f /dev/mapper/ROOT
-    mount -t btrfs /dev/mapper/ROOT /mnt
-    btrfs_setup
-    ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
-fi
-
-sync
-
-if ! mountpoint -q /mnt; then
-    echo -e "${BRed}ERROR: Failed to mount root partition to /mnt. Rebooting...${Color_Off}"
-    sleep 3; reboot now
-fi
-
-BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
-mkdir -p /mnt/boot
-mount -U "${BOOT_UUID}" /mnt/boot/
-
-display_header "Installing Arch Linux Base System"
-if [[ ! -d "/sys/firmware/efi" ]]; then
-    pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
-else
-    pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr grub --noconfirm --needed
-fi
-
-echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
-cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
-
-genfstab -U /mnt >> /mnt/etc/fstab
-echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
-cat /mnt/etc/fstab
-
-display_header "Checking for Low Memory Systems (<8GB) for Swap"
-TOTAL_MEM_KB=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
-if [[ "$TOTAL_MEM_KB" -lt 8000000 ]]; then
-    echo -e "${BYellow}System memory is less than 8GB, adding 2GB swap file.${Color_Off}"
-    mkdir -p /mnt/opt/swap
-    if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
-        chattr +C /mnt/opt/swap
+    if [[ ! -d "/sys/firmware/efi" ]]; then
+        sgdisk -A 1:set:2 "${DISK}"
     fi
-    dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
-    chmod 600 /mnt/opt/swap/swapfile
-    chown root /mnt/opt/swap/swapfile
-    mkswap /mnt/opt/swap/swapfile
-    echo "/opt/swap/swapfile none swap sw 0 0" >> /mnt/etc/fstab
-fi
+    partprobe "${DISK}"
 
-display_header "Entering Chroot Environment for Final Configurations"
-gpu_type=$(lspci | grep -E "VGA|3D|Display")
+    if [[ "${DISK}" =~ "nvme" ]]; then
+        partition2="${DISK}p2"
+        partition3="${DISK}p3"
+    else
+        partition2="${DISK}2"
+        partition3="${DISK}3"
+    fi
 
-arch-chroot /mnt /bin/bash <<EOF
-set -e
+    echo "Creating filesystems..."
+    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
 
-echo -e "${BPurple}--- Network Setup ---${Color_Off}"
-pacman -S --noconfirm --needed networkmanager dhcpcd
-systemctl enable NetworkManager
+    if [[ "${FS}" == "btrfs" ]]; then
+        mkfs.btrfs -f "${partition3}"
+        mount -t btrfs "${partition3}" /mnt
+        setup_btrfs_subvolumes
+    elif [[ "${FS}" == "ext4" ]]; then
+        mkfs.ext4 "${partition3}"
+        mount -t ext4 "${partition3}" /mnt
+    elif [[ "${FS}" == "luks" ]]; then
+        echo "Encrypting root partition with LUKS..."
+        echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
+        echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" cryptroot -
+        mkfs.btrfs /dev/mapper/cryptroot
+        mount -t btrfs /dev/mapper/cryptroot /mnt
+        setup_btrfs_subvolumes
+        export ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
+    fi
 
-echo -e "${BPurple}--- Pacman and System Configuration ---${Color_Off}"
-pacman -S --noconfirm --needed pacman-contrib curl reflector rsync git ntp wget
+    local BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
+    sync
 
-nc=\$(grep -c ^"cpu cores" /proc/cpuinfo)
-if [[ "\$(grep -i 'memtotal' /proc/meminfo | awk '{print \$2}')" -gt 8000000 ]]; then
-    echo -e "${BGreen}Configuring makepkg for \$nc cores and optimized compression.${Color_Off}"
-    sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\$nc\"/g" /etc/makepkg.conf
-    sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \$nc -z -)/g" /etc/makepkg.conf
-fi
+    if ! mountpoint -q /mnt; then
+        echo "${Red}Error: Failed to mount root partition to /mnt. Rebooting in 5 seconds...${Color_Off}"
+        sleep 5
+        reboot now
+    fi
+    mkdir -p /mnt/boot
+    mount -U "${BOOT_UUID}" /mnt/boot/
 
-echo -e "${BPurple}--- Language and Locale Setup ---${Color_Off}"
-sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-locale-gen
-timedatectl --no-ask-password set-timezone ${TIMEZONE}
-timedatectl --no-ask-password set-ntp 1
-localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
-ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+    if ! grep -qs '/mnt' /proc/mounts; then
+        echo "${Red}Error: Drive is not mounted correctly. Cannot continue. Rebooting in 5 seconds...${Color_Off}"
+        sleep 5
+        reboot now
+    fi
+}
 
-echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
-echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
-echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
+install_base_system() {
+    echo "Installing base Arch Linux system..."
+    local pacstrap_packages="base base-devel linux-lts linux-firmware"
+    if [[ -d "/sys/firmware/efi" ]]; then
+        pacstrap_packages+=" efibootmgr"
+    fi
+    pacstrap /mnt ${pacstrap_packages} --noconfirm --needed
 
-sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+    echo "Configuring mirrorlist and fstab..."
+    echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
+    cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
+    genfstab -U /mnt >> /mnt/etc/fstab
+    echo "Generated /mnt/etc/fstab:"
+    cat /mnt/etc/fstab
+}
 
-sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
+chroot_configuration() {
+    local gpu_type=$(lspci | grep -E "VGA|3D|Display")
+    local total_mem_kb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2}')
+    local cpu_cores=$(grep -c ^"cpu cores" /proc/cpuinfo)
 
-sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
-pacman -Sy --noconfirm --needed
+    arch-chroot /mnt pacman -S --noconfirm --needed networkmanager dhcpcd pacman-contrib curl reflector rsync grub arch-install-scripts git ntp wget fish
 
-echo -e "${BPurple}--- Microcode Installation ---${Color_Off}"
-if grep -q "GenuineIntel" /proc/cpuinfo; then
-    echo -e "${BGreen}Installing Intel microcode.${Color_Off}"
-    pacman -S --noconfirm --needed intel-ucode
-elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-    echo -e "${BGreen}Installing AMD microcode.${Color_Off}"
-    pacman -S --noconfirm --needed amd-ucode
-else
-    echo -e "${BYellow}Unable to determine CPU vendor. Skipping microcode installation.${Color_Off}"
-fi
+    if [[ "${SHELL_NAME}" == "fish" ]]; then
+        arch-chroot /mnt pacman -S --noconfirm --needed fish
+        arch-chroot /mnt chsh -s /usr/bin/fish ${USERNAME}
+    fi
 
-echo -e "${BPurple}--- Graphics Drivers Installation ---${Color_Off}"
-if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
-    echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts${Color_Off}"
-    pacman -S --noconfirm --needed nvidia-lts
-elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
-    echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu${Color_Off}"
-    pacman -S --noconfirm --needed xf86-video-amdgpu
-elif echo "${gpu_type}" | grep -E "Intel Corporation|Integrated Graphics Controller"; then
-    echo -e "${BGreen}Installing Intel drivers.${Color_Off}"
-    pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-utils lib32-mesa
-fi
+    arch-chroot /mnt /bin/bash -c "
+        echo 'Setting up network...'
+        systemctl enable NetworkManager
 
-echo -e "${BPurple}--- User Creation and Hostname ---${Color_Off}"
-groupadd libvirt
-useradd -m -G wheel,libvirt -s /bin/bash $USERNAME
-echo -e "${BGreen}$USERNAME created, home directory created, added to wheel and libvirt group, default shell set to /bin/bash.${Color_Off}"
-echo "$USERNAME:$PASSWORD" | chpasswd
-echo -e "${BGreen}Password for $USERNAME set.${Color_Off}"
-echo "$NAME_OF_MACHINE" > /etc/hostname
+        echo 'Optimizing Pacman and system settings...'
+        cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
-if [[ "${FS}" == "luks" ]]; then
-    echo -e "${BPurple}--- LUKS Configuration in mkinitcpio ---${Color_Off}"
-    sed -i 's/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/HOOKS=(base udev autodetect modconf block encrypt filesystems keyboard fsck)/g' /etc/mkinitcpio.conf
-    mkinitcpio -P linux-lts
-fi
+        echo 'Configuring MAKEFLAGS for ${cpu_cores} cores and XZ compression...'
+        if [[ ${total_mem_kb} -gt 8000000 ]]; then
+            sed -i \"s/#MAKEFLAGS=\\\"-j2\\\"/MAKEFLAGS=\\\"-j${cpu_cores}\\\"/g\" /etc/makepkg.conf
+            sed -i \"s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T ${cpu_cores} -z -)/g\" /etc/makepkg.conf
+        fi
 
-echo -e "${BPurple}--- GRUB Bootloader Installation & Configuration ---${Color_Off}"
-if [[ -d "/sys/firmware/efi" ]]; then
-    grub-install --efi-directory=/boot --target=x86_64-efi --bootloader-id=GRUB ${DISK}
-else
-    grub-install --boot-directory=/boot ${DISK}
-fi
+        echo 'Setting locale and timezone...'
+        sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+        locale-gen
+        timedatectl --no-ask-password set-timezone ${TIMEZONE}
+        timedatectl --no-ask-password set-ntp 1
+        localectl --no-ask-password set-locale LANG=\"en_US.UTF-8\" LC_TIME=\"en_US.UTF-8\"
+        ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 
-if [[ "${FS}" == "luks" ]]; then
-    sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
-fi
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
+        echo \"KEYMAP=${KEYMAP}\" > /etc/vconsole.conf
+        echo \"XKBLAYOUT=${KEYMAP}\" >> /etc/vconsole.conf
+        echo \"Keyboard layout set to: ${KEYMAP}\"
 
-echo -e "${BGreen}Updating grub configuration...${Color_Off}"
-grub-mkconfig -o /boot/grub/grub.cfg
+        echo 'Configuring sudoers and Pacman features...'
+        sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+        sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+        sed -i 's/^#Color/Color\\nILoveCandy/' /etc/pacman.conf
+        sed -i \"/\\[multilib\\]/,/Include/s/^#//\" /etc/pacman.conf
+        pacman -Sy --noconfirm --needed
 
-echo -e "${BPurple}--- Enabling Essential Services ---${Color_Off}"
-systemctl enable ntpd.service
-echo -e "${BGreen}  NTP enabled${Color_Off}"
-systemctl disable dhcpcd.service
-echo -e "${BGreen}  DHCP disabled (NetworkManager will be used)${Color_Off}"
-systemctl enable NetworkManager.service
-echo -e "${BGreen}  NetworkManager enabled${Color_Off}"
-systemctl enable reflector.timer
-echo -e "${BGreen}  Reflector enabled${Color_Off}"
+        echo 'Installing microcode...'
+        if grep -q \"GenuineIntel\" /proc/cpuinfo; then
+            echo \"Installing Intel microcode.\"
+            pacman -S --noconfirm --needed intel-ucode
+        elif grep -q \"AuthenticAMD\" /proc/cpuinfo; then
+            echo \"Installing AMD microcode.\"
+            pacman -S --noconfirm --needed amd-ucode
+        else
+            echo \"CPU vendor not determined. Skipping microcode installation.\"
+        fi
 
-echo -e "${BPurple}--- Cleaning Up Sudoers ---${Color_Off}"
-sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+        echo 'Installing graphics drivers...'
+        if echo \"${gpu_type}\" | grep -E \"NVIDIA|GeForce\"; then
+            echo \"Installing NVIDIA drivers: nvidia-lts\"
+            pacman -S --noconfirm --needed nvidia-lts
+        elif echo \"${gpu_type}\" | grep 'VGA' | grep -E \"Radeon|AMD\"; then
+            echo \"Installing AMD drivers: mesa\"
+            pacman -S --noconfirm --needed mesa
+        elif echo \"${gpu_type}\" | grep -E \"Intel Corporation|Integrated Graphics Controller|Intel Corporation UHD\"; then
+            echo \"Installing Intel graphics drivers.\"
+            pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
+        else
+            echo \"No specific GPU detected, skipping graphics driver installation.\"
+        fi
 
-echo -e "${BGreen}Arch Linux installation complete!${Color_Off}"
-EOF
+        echo 'Installing Hyprland and dependencies...'
+        if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
+            pacman -S --noconfirm --needed hyprland wayland xdg-desktop-portal-hyprland xdg-desktop-portal-gtk qt5-wayland qt6-wayland
+            pacman -S --noconfirm --needed waybar hyprpaper dunst kitty rofi polkit-gnome pipewire pipewire-alsa pipewire-pulse pipewire-jack
+        fi
 
-display_header "Installation Finished!"
-echo -e "${BGreen}You can now reboot into your new Arch Linux system.${Color_Off}"
-echo "Unmounting /mnt..."
-umount -R /mnt
+        echo 'Creating user account...'
+        groupadd libvirt
+        useradd -m -G wheel,libvirt -s /bin/bash ${USERNAME}
+        echo \"User ${USERNAME} created and configured.\"
+        echo \"${USERNAME}:${PASSWORD}\" | chpasswd
+        echo \"Password set for ${USERNAME}.\"
+        echo ${NAME_OF_MACHINE} > /etc/hostname
 
-echo -e "${BYellow}Rebooting in 5 seconds... Press Ctrl+C to cancel.${Color_Off}"
-sleep 5
-reboot now
+        echo 'Downloading selected Hyprland dotfiles...'
+        if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
+            if ! command -v git &> /dev/null; then
+                echo \"${Red}Error: git command not found inside chroot. Cannot clone dotfiles. Aborting.${Color_Off}\"
+                exit 1
+            fi
+
+            local dotfiles_clone_target=\"${HYPR_DOTS_DIR}\"
+            mkdir -p \"${dotfiles_clone_target}\"
+            chown -R ${USERNAME}:${USERNAME} \"${dotfiles_clone_target}\"
+
+            echo \"Attempting to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL} into ${dotfiles_clone_target}...\"
+            if ! su - ${USERNAME} -c \"git clone --depth 1 \\\"${HYPR_DOTS_URL}\\\" \\\"${dotfiles_clone_target}\\\"\"; then
+                echo \"${Red}CRITICAL ERROR: Failed to clone ${HYPR_DOTS} dotfiles from ${HYPR_DOTS_URL}. Please check URL and network.${Color_Off}\"
+                exit 1
+            fi
+            echo \"${HYPR_DOTS} dotfiles downloaded to ${dotfiles_clone_target}.\"
+
+            echo \"Attempting to run ${HYPR_DOTS} installer: ${HYPR_INSTALL_COMMAND}\"
+            if ! su - ${USERNAME} -c \"${HYPR_INSTALL_COMMAND}\"; then
+                echo \"${Red}CRITICAL ERROR: ${HYPR_DOTS} dotfiles installation failed. Review the installer's output.${Color_Off}\"
+                exit 1
+            fi
+        fi
+
+        if [[ ${FS} == \"luks\" ]]; then
+            echo 'Configuring mkinitcpio for LUKS encryption...'
+            sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+            mkinitcpio -p linux-lts
+        fi
+
+        echo 'Setting up GRUB bootloader...'
+        if [[ -d \"/sys/firmware/efi\" ]]; then
+            grub-install --efi-directory=/boot ${DISK}
+        else
+            grub-install --boot-directory=/boot ${DISK}
+        fi
+
+        echo 'Generating GRUB configuration...'
+        if [[ \"${FS}\" == \"luks\" ]]; then
+            sed -i \"s/GRUB_CMDLINE_LINUX_DEFAULT=\\\"/GRUB_CMDLINE_LINUX_DEFAULT=\\\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:cryptroot root=\/dev\/mapper\/cryptroot /g\" /etc/default/grub
+        fi
+        sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=\"[^\\\"]*/& splash /' /etc/default/grub
+        grub-mkconfig -o /boot/grub/grub.cfg
+
+        echo 'Enabling essential services...'
+        ntpd -qg
+        systemctl enable ntpd.service
+        systemctl disable dhcpcd.service
+        systemctl enable NetworkManager.service
+        systemctl enable reflector.timer
+        if [[ \"${HYPR_DOTS}\" != \"None\" ]]; then
+            systemctl enable polkit.service
+        fi
+
+        echo 'Finalizing user permissions...'
+    "
+}
+
+create_swap_if_needed() {
+    local total_mem_mb=$(grep -i 'memtotal' /proc/meminfo | awk '{print $2 / 1024}')
+    if (( $(echo "$total_mem_mb < 8192" | bc -l) )); then
+        echo "System memory is ${total_mem_mb}MB (<8GB). Creating 2GB swap file."
+        mkdir -p /mnt/opt/swap
+        if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
+            chattr +C /mnt/opt/swap
+        fi
+        dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
+        chmod 600 /mnt/opt/swap/swapfile
+        chown root /mnt/opt/swap/swapfile
+        mkswap /mnt/opt/swap/swapfile
+        swapon /mnt/opt/swap/swapfile
+        echo "/opt/swap/swapfile none swap sw 0 0" >> /mnt/etc/fstab
+    else
+        echo "Sufficient memory detected (${total_mem_mb}MB). Skipping swap file creation."
+    fi
+}
+
+main() {
+    clear
+    check_environment
+
+    clear
+    display_section_header
+    gather_user_info
+
+    clear
+    display_section_header
+    select_disk
+
+    clear
+    display_section_header
+    select_filesystem
+
+    clear
+    display_section_header
+    set_timezone
+
+    clear
+    display_section_header
+    set_keymap
+
+    clear
+    display_section_header
+    select_hyprland_dots
+
+    clear
+    display_section_header
+    select_shell
+
+    echo "${BCyan}--- System Preparation ---${Color_Off}"
+    timedatectl set-ntp true
+    pacman -Sy
+    pacman -S --noconfirm archlinux-keyring pacman-contrib terminus-font reflector rsync grub gptfdisk btrfs-progs glibc --needed
+    setfont ter-v18b
+    sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+
+    local country_code=$(curl -4 --silent ifconfig.io/country_code)
+    echo "Optimizing Pacman mirrors for your region (${country_code})..."
+    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+    reflector -a 48 -c "$country_code" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
+    if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
+        echo "${Yellow}Less than 5 mirrors found. Reverting to backup mirrorlist.${Color_Off}"
+        cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
+    fi
+
+    echo "${BCyan}--- Partitioning and Formatting Disks ---${Color_Off}"
+    format_and_mount_disks
+
+    echo "${BCyan}--- Installing Arch Linux Base System ---${Color_Off}"
+    install_base_system
+
+    echo "${BCyan}--- Creating Swap File (if needed) ---${Color_Off}"
+    create_swap_if_needed
+
+    echo "${BCyan}--- Configuring Installed System (chroot) ---${Color_Off}"
+    chroot_configuration
+
+    echo "Unmounting partitions..."
+    umount -R /mnt
+
+    echo -ne "${BYellow}
+-------------------------------------------------------------------------
+                                                                                   
+   _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
+ _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
+                                                                                   
+                                                                                   
+                           CTOR
+-------------------------------------------------------------------------
+        Arch Linux Installation Complete! 🎉
+-------------------------------------------------------------------------
+${Color_Off}"
+
+    if [[ "${HYPR_DOTS}" != "None" ]]; then
+        echo ""
+        echo "${BGreen}==================================================================${Color_Off}"
+        echo "${BGreen}  Next Step: Install Hyprland Dotfiles. ${Color_Off}"
+        echo "${BGreen}==================================================================${Color_Off}"
+        echo "Your selected Hyprland dotfiles (${HYPR_DOTS}) have been downloaded."
+
+        if [[ "${HYPR_DOTS}" == "Caelestia" ]]; then
+            echo "Caelestia dotfiles are located at: ${BYellow}~/.local/share/caelestia${Color_Off}"
+            echo "To install Caelestia, log into your new Arch system as '${USERNAME}' and run:"
+            echo "  ${BBlue}cd ~/.local/share/caelestia${Color_Off}"
+            echo "  ${BBlue}./install.fish --noconfirm --spotify --vscode=code --discord --zen${Color_Off}"
+            echo "(Note: You will need to switch to fish shell if you chose bash as primary, or just run the .fish script directly)"
+        else
+            echo "The dotfiles are located in your new system's Downloads directory:"
+            echo "  ${BYellow}${HYPR_DOTS_DIR}${Color_Off}"
+            echo "To install them, log into your new Arch system as '${USERNAME}' and run:"
+            echo "  ${BBlue}${HYPR_INSTALL_COMMAND}${Color_Off}"
+        fi
+
+        echo ""
+        echo "Remember to reboot your system and log in as '${USERNAME}' to complete the setup."
+    else
+        echo "No Hyprland dotfiles were selected for download."
+    fi
+
+    echo ""
+    echo "Installation script finished."
+    read -p "Press Enter to reboot, or Ctrl+C to exit."
+    reboot
+}
+
+main
