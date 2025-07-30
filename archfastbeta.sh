@@ -400,7 +400,7 @@ display_header "Installing Arch Linux Base System"
 if [[ ! -d "/sys/firmware/efi" ]]; then
     pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
 else
-    pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr --noconfirm --needed
+    pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr grub --noconfirm --needed
 fi
 
 echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
