@@ -510,6 +510,8 @@ fi
 # Chroot into the new system to continue configuration
 arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
 
+echo "root:${PASSWORD}" | chpasswd
+
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
                         Network Setup
