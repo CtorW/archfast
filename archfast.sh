@@ -29,7 +29,7 @@ if tput setaf 1 >/dev/null 2>&1; then
 
     # Bright Bold Colors
     BIBlack="$(tput bold; tput setaf 8)"
-    BIRed="$(tput bold; tputaf 9)"
+    BIRed="$(tput bold; tput setaf 9)"
     BIGreen="$(tput bold; tput setaf 10)"
     BIYellow="$(tput bold; tput setaf 11)"
     BIBlue="$(tput bold; tput setaf 12)"
@@ -156,7 +156,7 @@ select_option() {
     # Print the options for the first time
     for i in "${!options[@]}"; do
         if [ "$i" -eq $selected ]; then
-            echo -e "${BIGreen}> ${options[$i]}${Color_Off}"
+            echo -e "${BICyan}> ${options[$i]}${Color_Off}"
         else
             echo -e "${BYellow}  ${options[$i]}${Color_Off}"
         fi
@@ -172,7 +172,7 @@ select_option() {
             # Clear the current line before printing
             tput el
             if [ "$i" -eq $selected ]; then
-                echo -e "${BIGreen}> ${options[$i]}${Color_Off}"
+                echo -e "${BICyan}> ${options[$i]}${Color_Off}"
             else
                 echo -e "${BYellow}  ${options[$i]}${Color_Off}"
             fi
