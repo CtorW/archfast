@@ -503,7 +503,7 @@ arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                       Network Setup
+                       Network Setup
 -------------------------------------------------------------------------${Color_Off}
 "
 pacman -S --noconfirm --needed networkmanager dhcpcd
@@ -511,7 +511,7 @@ systemctl enable NetworkManager
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-             Setting up mirrors for optimal download
+             Setting up mirrors for optimal download
 -------------------------------------------------------------------------${Color_Off}
 "
 pacman -S --noconfirm --needed pacman-contrib curl
@@ -521,19 +521,19 @@ cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 nc=$(grep -c ^"cpu cores" /proc/cpuinfo)
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                   You have " $nc" cores. And
-             changing the makeflags for " $nc" cores. Aswell as
-                  changing the compression settings.
+                   You have " $nc" cores. And
+             changing the makeflags for " $nc" cores. Aswell as
+                  changing the compression settings.
 -------------------------------------------------------------------------${Color_Off}
 "
 TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-if [[  $TOTAL_MEM -gt 8000000 ]]; then
+if [[  $TOTAL_MEM -gt 8000000 ]]; then
 sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$nc\"/g" /etc/makepkg.conf
 sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T $nc -z -)/g" /etc/makepkg.conf
 fi
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-             Setup Language to US and set locale
+             Setup Language to US and set locale
 -------------------------------------------------------------------------${Color_Off}
 "
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
@@ -556,41 +556,49 @@ pacman -Sy --noconfirm --needed
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                    Installing Microcode
+                    Installing Microcode
 -------------------------------------------------------------------------${Color_Off}
 "
 if grep -q "GenuineIntel" /proc/cpuinfo; then
-    echo "Installing Intel microcode"
-    pacman -S --noconfirm --needed intel-ucode
+    echo "Installing Intel microcode"
+    pacman -S --noconfirm --needed intel-ucode
 elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-    echo "Installing AMD microcode"
-    pacman -S --noconfirm --needed amd-ucode
+    echo "Installing AMD microcode"
+    pacman -S --noconfirm --needed amd-ucode
 else
-    echo "Unable to determine CPU vendor. Skipping microcode installation."
+    echo "Unable to determine CPU vendor. Skipping microcode installation."
 fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                  Installing Graphics Drivers
+                  Installing Graphics Drivers
 -------------------------------------------------------------------------${Color_Off}
 "
 if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
-    echo "Installing NVIDIA drivers: nvidia-lts"
-    pacman -S --noconfirm --needed nvidia-lts
+    echo "Installing NVIDIA drivers: nvidia-lts"
+    pacman -S --noconfirm --needed nvidia-lts
 elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
-    echo "Installing AMD drivers: xf86-video-amdgpu"
-    pacman -S --noconfirm --needed xf86-video-amdgpu
+    echo "Installing AMD drivers: xf86-video-amdgpu"
+    pacman -S --noconfirm --needed xf86-video-amdgpu
 elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller"; then
-    echo "Installing Intel drivers:"
-    pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
+    echo "Installing Intel drivers:"
+    pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
 elif echo "${gpu_type}" | grep -E "Intel Corporation UHD"; then
-    echo "Installing Intel UHD drivers:"
-    pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
+    echo "Installing Intel UHD drivers:"
+    pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
 fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                        Adding User
+                     Enabling Sudo Permissions
+-------------------------------------------------------------------------${Color_Off}
+"
+echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-custom-sudoers
+chmod 0440 /etc/sudoers.d/10-custom-sudoers
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                        Adding User
 -------------------------------------------------------------------------${Color_Off}
 "
 groupadd libvirt
@@ -601,20 +609,20 @@ echo "$USERNAME password set"
 echo $NAME_OF_MACHINE > /etc/hostname
 
 if [[ ${FS} == "luks" ]]; then
-    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-    mkinitcpio -p linux-lts
+    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+    mkinitcpio -p linux-lts
 fi
 
 echo -ne "
 ${BCyan}-------------------------------------------------------------------------
                                                                                    
-   _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
- _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|     
+   _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
+ _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
+ _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
 -------------------------------------------------------------------------
-${BYellow}           Automated Arch Linux Installer${Color_Off}
+${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 
 Final Setup and Configurations
@@ -622,7 +630,7 @@ GRUB EFI Bootloader Install & Check
 ${Color_Off}"
 
 if [[ -d "/sys/firmware/efi" ]]; then
-    grub-install --efi-directory=/boot ${DISK}
+    grub-install --efi-directory=/boot ${DISK}
 fi
 
 echo -ne "
@@ -646,20 +654,19 @@ ${BGreen}-----------------------------------------------------------------------
 "
 ntpd -qg
 systemctl enable ntpd.service
-echo "NTP enabled"
+echo "  NTP enabled"
 systemctl disable dhcpcd.service
-echo "DHCP disabled"
+echo "  DHCP disabled"
 systemctl enable NetworkManager.service
-echo "NetworkManager enabled"
+echo "  NetworkManager enabled"
 systemctl enable reflector.timer
-echo "Reflector enabled"
+echo "  Reflector enabled"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
              HYPRLAND-TEST
 -------------------------------------------------------------------------${Color_Off}
 "
-
 su - "$USERNAME" <<'HYPERLAND_TEST_EOF'
 echo "Cloning HyDE repository..."
 git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
@@ -674,7 +681,6 @@ ${BGreen}-----------------------------------------------------------------------
                          Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
-
 sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
