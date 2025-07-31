@@ -150,14 +150,16 @@ select_option() {
     local options=("$@")
     local num_options=${#options[@]}
     local selected=0
+    
+    # Print the instruction message once before the loop
+    echo -e "${BIWhite}Please select an option using the arrow keys and Enter:${Color_Off}"
 
     while true; do
-        # Clear previous lines to redraw the menu
-        if [ "$last_selected" != "" ]; then
-            echo -ne "\033[${num_options}A"
-        fi
-
-        echo -e "${BIWhite}Please select an option using the arrow keys and Enter:${Color_Off}"
+        # Move cursor up to the beginning of the menu for redrawing
+        # The number of lines to move up is the number of options
+        echo -ne "\033[${num_options}A"
+        
+        # Redraw the options with the current selection highlighted
         for i in "${!options[@]}"; do
             if [ "$i" -eq $selected ]; then
                 echo -e "${BIGreen}> ${options[$i]}${Color_Off}"
@@ -166,8 +168,7 @@ select_option() {
             fi
         done
 
-        last_selected=$selected
-
+        # Read a single key press without echoing it
         read -rsn1 key
         case "$key" in
             $'\x1b') # Arrow key escape sequence
@@ -188,11 +189,15 @@ select_option() {
                 esac
                 ;;
             '') # Enter key
+                # A carriage return ('\r') is sometimes needed for some terminals
+                # to properly move the cursor after the redraw.
+                echo -e "\r"
                 break
                 ;;
         esac
     done
 
+    # Return the index of the selected option
     return $selected
 }
 
@@ -529,8 +534,9 @@ cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 nc=$(grep -c ^"cpu cores" /proc/cpuinfo)
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                    You have ${nc} cores.
-              Changing makeflags for ${nc} cores.
+                    You have ${nc} cores. And
+              changing the makeflags for ${nc} cores. Aswell as
+                   changing the compression settings.
 -------------------------------------------------------------------------${Color_Off}
 "
 TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
@@ -672,7 +678,7 @@ ${BGreen}-----------------------------------------------------------------------
                           Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
-# Reverting temporary sudoers changes
+# Reverting temporary sudoers changes for security
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
