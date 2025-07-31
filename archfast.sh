@@ -676,14 +676,4 @@ echo "Running the HyDE install script..."
 ./install.sh
 HYPERLAND_TEST_EOF
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                         Cleaning
--------------------------------------------------------------------------${Color_Off}
-"
-sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-
 EOF
