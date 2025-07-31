@@ -83,6 +83,9 @@ exec 2>&1
 #                          Initial System Checks
 # ==============================================================================
 
+# Function to display the main logo and title
+logo () {
+    clear
 echo -ne "
 ${BCyan}-------------------------------------------------------------------------
     _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
@@ -93,7 +96,12 @@ ${BCyan}------------------------------------------------------------------------
 -------------------------------------------------------------------------
 ${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
+"
+}
 
+# Initial checks
+logo
+echo -ne "
 ${BGreen}Verifying Arch Linux ISO is Booted${Color_Off}
 
 "
@@ -151,16 +159,26 @@ select_option() {
     local num_options=${#options[@]}
     local selected=0
     
-    # Print the instruction message once before the loop
     echo -e "${BIWhite}Please select an option using the arrow keys and Enter:${Color_Off}"
 
+    # Print the options for the first time
+    for i in "${!options[@]}"; do
+        if [ "$i" -eq $selected ]; then
+            echo -e "${BIGreen}> ${options[$i]}${Color_Off}"
+        else
+            echo -e "${BYellow}  ${options[$i]}${Color_Off}"
+        fi
+    done
+
+    # Start the key press loop
     while true; do
-        # Move cursor up to the beginning of the menu for redrawing
-        # The number of lines to move up is the number of options
-        echo -ne "\033[${num_options}A"
+        # Move cursor up to the beginning of the menu options for redrawing
+        tput cuu "${num_options}"
         
         # Redraw the options with the current selection highlighted
         for i in "${!options[@]}"; do
+            # Clear the current line before printing
+            tput el
             if [ "$i" -eq $selected ]; then
                 echo -e "${BIGreen}> ${options[$i]}${Color_Off}"
             else
@@ -189,9 +207,7 @@ select_option() {
                 esac
                 ;;
             '') # Enter key
-                # A carriage return ('\r') is sometimes needed for some terminals
-                # to properly move the cursor after the redraw.
-                echo -e "\r"
+                echo
                 break
                 ;;
         esac
@@ -201,23 +217,8 @@ select_option() {
     return $selected
 }
 
-# Function to display the main logo again
-logo () {
-    clear
-echo -ne "
-${BCyan}-------------------------------------------------------------------------
-    _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
- _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|     
-------------------------------------------------------------------------
-${BYellow}      Please select presetup settings for your system${Color_Off}
-${BCyan}------------------------------------------------------------------------${Color_Off}
-"
-}
-
 filesystem () {
+    logo
     echo -e "${BGreen}Please Select your file system for both boot and root${Color_Off}"
     options=("btrfs" "ext4" "luks" "exit")
     select_option "${options[@]}"
@@ -227,6 +228,7 @@ filesystem () {
         0) export FS=btrfs;;
         1) export FS=ext4;;
         2)
+            logo
             echo -e "${BYellow}Please enter a password for LUKS encryption.${Color_Off}"
             read -s -p "Enter LUKS password: " LUKS_PASSWORD
             echo
@@ -234,6 +236,7 @@ filesystem () {
             echo
             if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; then
                 echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
+                sleep 2
                 filesystem
                 return
             fi
@@ -245,6 +248,7 @@ filesystem () {
 }
 
 timezone () {
+    logo
     time_zone="$(curl --fail https://ipapi.co/timezone)"
     echo -e "${BGreen}System detected your timezone to be '${time_zone}'.${Color_Off}"
     echo -e "${BYellow}Is this correct?${Color_Off}"
@@ -257,6 +261,7 @@ timezone () {
             echo -e "${BGreen}${time_zone} set as timezone.${Color_Off}"
             export TIMEZONE=$time_zone;;
         "No")
+            logo
             echo -e "${BYellow}Please enter your desired timezone (e.g., Europe/London):${Color_Off}"
             read -r new_timezone
             echo -e "${BGreen}${new_timezone} set as timezone.${Color_Off}"
@@ -267,6 +272,7 @@ timezone () {
 }
 
 keymap () {
+    logo
     echo -e "${BGreen}Please select your keyboard layout from the list below:${Color_Off}"
     options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
     select_option "${options[@]}"
@@ -277,6 +283,7 @@ keymap () {
 }
 
 drivessd () {
+    logo
     echo -e "${BGreen}Is this an SSD?${Color_Off}"
     options=("Yes" "No")
     select_option "${options[@]}"
@@ -290,7 +297,8 @@ drivessd () {
 }
 
 diskpart () {
-echo -e "
+    logo
+    echo -e "
 ${BRed}------------------------------------------------------------------------
     WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK
     Please be absolutely sure you have backed up any important data.
@@ -312,6 +320,7 @@ ${BRed}------------------------------------------------------------------------
 }
 
 userinfo () {
+    logo
     while true
     do
         read -r -p "${BYellow}Please enter a username:${Color_Off} " username
@@ -360,19 +369,14 @@ userinfo () {
 # Run initial checks before starting
 background_checks
 clear
-logo
 userinfo
 clear
-logo
 diskpart
 clear
-logo
 filesystem
 clear
-logo
 timezone
 clear
-logo
 keymap
 
 echo -e "${BYellow}Starting the installation process...${Color_Off}"
