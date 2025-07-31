@@ -486,9 +486,21 @@ genfstab -U /mnt >> /mnt/etc/fstab
 echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
 cat /mnt/etc/fstab
 
-echo -e "${BGreen}GRUB BIOS Bootloader Install & Check...${Color_Off}"
+echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
-    grub-install --boot-directory=/mnt/boot "${DISK}"
+    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
+    grub-install --target=i386-pc --boot-directory=/mnt/boot "${DISK}"
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
+        exit 1
+    fi
+else
+    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+    grub-install --target=x86_64-efi --efi-directory=/mnt/boot --removable
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+        exit 1
+    fi
 fi
 
 echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
@@ -509,6 +521,8 @@ fi
 
 # Chroot into the new system to continue configuration
 arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
+
+echo "root:${PASSWORD}" | chpasswd
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
@@ -637,7 +651,19 @@ ${BGreen}Final Setup and Configurations
 GRUB EFI Bootloader Install & Check${Color_Off}"
 
 if [[ -d "/sys/firmware/efi" ]]; then
-    grub-install --efi-directory=/boot ${DISK}
+    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+    grub-install --target=x86_64-efi --efi-directory=/boot --removable
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+        exit 1
+    fi
+else
+    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
+    grub-install --target=i386-pc --boot-directory=/mnt/boot "${DISK}"
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
+        exit 1
+    fi
 fi
 
 echo -ne "
@@ -652,6 +678,20 @@ sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
 
 echo -e "${BGreen}Updating grub...${Color_Off}"
 grub-mkconfig -o /boot/grub/grub.cfg
+if [ $? -ne 0 ]; then
+    echo -e "${BRed}ERROR: Failed to create grub.cfg. Exiting.${Color_Off}"
+    exit 1
+fi
+
+echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
+if [ ! -f /boot/grub/grub.cfg ]; then
+    echo -e "${BRed}ERROR: grub.cfg was not created. Exiting.${Color_Off}"
+    exit 1
+fi
+if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
+    echo -e "${BRed}ERROR: grub.cfg does not contain an Arch Linux entry. Exiting.${Color_Off}"
+    exit 1
+fi
 echo -e "${BGreen}Grub configuration complete!${Color_Off}"
 
 echo -ne "
