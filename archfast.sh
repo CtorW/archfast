@@ -323,7 +323,7 @@ userinfo () {
     logo
     while true
     do
-        read -r -p "${BYellow}Please enter a username:${Color_Off} " username
+        read -r -p ${BYellow}"Please enter a username: "${Color_Off} username
         if [[ "${username,,}" =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]]
         then
             break
