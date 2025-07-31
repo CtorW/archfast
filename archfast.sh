@@ -508,6 +508,7 @@ ${BGreen}-----------------------------------------------------------------------
 "
 pacman -S --noconfirm --needed networkmanager dhcpcd
 systemctl enable NetworkManager
+
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
              Setting up mirrors for optimal download
@@ -545,9 +546,6 @@ ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
 echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
 echo "Keymap set to: ${KEYMAP}"
-
-sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 
 sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 
@@ -609,14 +607,14 @@ fi
 
 echo -ne "
 ${BCyan}-------------------------------------------------------------------------
-                                                                                   
+                                                                                   
    _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
  _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|      
+ _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|     
 -------------------------------------------------------------------------
-${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BYellow}           Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 
 Final Setup and Configurations
@@ -629,7 +627,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                  Creating Grub Boot Menu
+                  Creating Grub Boot Menu
 -------------------------------------------------------------------------${Color_Off}
 "
 if [[ "${FS}" == "luks" ]]; then
@@ -643,26 +641,43 @@ echo -e "All set!"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                  Enabling Essential Services
+                  Enabling Essential Services
 -------------------------------------------------------------------------${Color_Off}
 "
 ntpd -qg
 systemctl enable ntpd.service
-echo "  NTP enabled"
+echo "NTP enabled"
 systemctl disable dhcpcd.service
-echo "  DHCP disabled"
+echo "DHCP disabled"
 systemctl enable NetworkManager.service
-echo "  NetworkManager enabled"
+echo "NetworkManager enabled"
 systemctl enable reflector.timer
-echo "  Reflector enabled"
+echo "Reflector enabled"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                         Cleaning
+             HYPRLAND-TEST
 -------------------------------------------------------------------------${Color_Off}
 "
+
+su - "$USERNAME" <<'HYPERLAND_TEST_EOF'
+echo "Cloning HyDE repository..."
+git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
+
+cd ~/HyDE/Scripts
+echo "Running the HyDE install script..."
+./install.sh
+HYPERLAND_TEST_EOF
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                         Cleaning
+-------------------------------------------------------------------------${Color_Off}
+"
+
 sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
 EOF
