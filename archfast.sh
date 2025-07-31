@@ -4,76 +4,68 @@
 #           Color Definitions for a More Beautiful Terminal Experience
 # ==============================================================================
 
-# Standard Colors
-Color_Off="\033[0m"
-Black="\033[0;30m"
-Red="\033[0;31m"
-Green="\033[0;32m"
-Yellow="\033[0;33m"
-Blue="\033[0;34m"
-Purple="\033[0;35m"
-Cyan="\033[0;36m"
-White="\033[0;37m"
+# Check if terminal supports colors and use tput, otherwise use raw codes
+if tput setaf 1 >/dev/null 2>&1; then
+    # Standard Colors
+    Color_Off="$(tput sgr0)"
+    Black="$(tput setaf 0)"
+    Red="$(tput setaf 1)"
+    Green="$(tput setaf 2)"
+    Yellow="$(tput setaf 3)"
+    Blue="$(tput setaf 4)"
+    Purple="$(tput setaf 5)"
+    Cyan="$(tput setaf 6)"
+    White="$(tput setaf 7)"
 
-# Bold Colors
-BBlack="\033[1;30m"
-BRed="\033[1;31m"
-BGreen="\033[1;32m"
-BYellow="\033[1;33m"
-BBlue="\033[1;34m"
-BPurple="\033[1;35m"
-BCyan="\033[1;36m"
-BWhite="\033[1;37m"
+    # Bold Colors
+    BBlack="$(tput bold; tput setaf 0)"
+    BRed="$(tput bold; tput setaf 1)"
+    BGreen="$(tput bold; tput setaf 2)"
+    BYellow="$(tput bold; tput setaf 3)"
+    BBlue="$(tput bold; tput setaf 4)"
+    BPurple="$(tput bold; tput setaf 5)"
+    BCyan="$(tput bold; tput setaf 6)"
+    BWhite="$(tput bold; tput setaf 7)"
 
-# Underline Colors
-UBlack="\033[4;30m"
-URed="\033[4;31m"
-UGreen="\033[4;32m"
-UYellow="\033[4;33m"
-UBlue="\033[4;34m"
-UPurple="\033[4;35m"
-UCyan="\033[4;36m"
-UWhite="\033[4;37m"
+    # Bright Bold Colors
+    BIBlack="$(tput bold; tput setaf 8)"
+    BIRed="$(tput bold; tputaf 9)"
+    BIGreen="$(tput bold; tput setaf 10)"
+    BIYellow="$(tput bold; tput setaf 11)"
+    BIBlue="$(tput bold; tput setaf 12)"
+    BIPurple="$(tput bold; tput setaf 13)"
+    BICyan="$(tput bold; tput setaf 14)"
+    BIWhite="$(tput bold; tput setaf 15)"
+else
+    # Fallback to hardcoded ANSI codes if tput is not available or supported
+    Color_Off="\033[0m"
+    Black="\033[0;30m"
+    Red="\033[0;31m"
+    Green="\033[0;32m"
+    Yellow="\033[0;33m"
+    Blue="\033[0;34m"
+    Purple="\033[0;35m"
+    Cyan="\033[0;36m"
+    White="\033[0;37m"
 
-# Background Colors
-On_Black="\033[40m"
-On_Red="\033[41m"
-On_Green="\033[42m"
-On_Yellow="\033[43m"
-On_Blue="\033[44m"
-On_Purple="\033[45m"
-On_Cyan="\033[46m"
-On_White="\033[47m"
-
-# Bright Colors
-IBlack="\033[0;90m"
-IRed="\033[0;91m"
-IGreen="\033[0;92m"
-IYellow="\033[0;93m"
-IBlue="\033[0;94m"
-IPurple="\033[0;95m"
-ICyan="\033[0;96m"
-IWhite="\033[0;97m"
-
-# Bright Bold Colors
-BIBlack="\033[1;90m"
-BIRed="\033[1;91m"
-BIGreen="\033[1;92m"
-BIYellow="\033[1;93m"
-BIBlue="\033[1;94m"
-BIPurple="\033[1;95m"
-BICyan="\033[1;96m"
-BIWhite="\033[1;97m"
-
-# Bright Background Colors
-On_IBlack="\033[0;100m"
-On_IRed="\033[0;101m"
-On_IGreen="\033[0;102m"
-On_IYellow="\033[0;103m"
-On_IBlue="\033[0;104m"
-On_IPurple="\033[10;95m"
-On_ICyan="\033[0;106m"
-On_IWhite="\033[0;107m"
+    BBlack="\033[1;30m"
+    BRed="\033[1;31m"
+    BGreen="\033[1;32m"
+    BYellow="\033[1;33m"
+    BBlue="\033[1;34m"
+    BPurple="\033[1;35m"
+    BCyan="\033[1;36m"
+    BWhite="\033[1;37m"
+    
+    BIBlack="\033[1;90m"
+    BIRed="\033[1;91m"
+    BIGreen="\033[1;92m"
+    BIYellow="\033[1;93m"
+    BIBlue="\033[1;94m"
+    BIPurple="\033[1;95m"
+    BICyan="\033[1;96m"
+    BIWhite="\033[1;97m"
+fi
 
 # Redirect all output to a log file
 exec > >(tee -i archsetup.txt)
@@ -323,7 +315,7 @@ userinfo () {
     logo
     while true
     do
-        read -r -p ${BYellow}"Please enter a username: "${Color_Off} username
+        read -r -p "${BYellow}Please enter a username:${Color_Off} " username
         if [[ "${username,,}" =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]]
         then
             break
