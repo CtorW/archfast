@@ -3,7 +3,7 @@
   
 ![CTORW(2)](https://github.com/user-attachments/assets/ef5c4d11-bd22-4c6f-a671-aa3174594c77)
 
-  <img src="https://github.com/user-attachments/assets/5ea9f193-e984-4589-a865-79fac480abb5" alt="ArchEnhacedINS Logo/Banner" width="350"/>
+![CTORW](https://github.com/user-attachments/assets/f85773b4-0fa9-471f-b376-020e880b83a9)
   <br><br>
 </div>
 
