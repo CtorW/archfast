@@ -403,7 +403,6 @@ umount -A --recursive /mnt
 sgdisk -Z "${DISK}"
 sgdisk -a 2048 -o "${DISK}"
 
-sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
 sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
 sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
@@ -488,15 +487,8 @@ cat /mnt/etc/fstab
 
 echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
-    grub-install --target=i386-pc --boot-directory=/mnt/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
-        exit 1
-    fi
-else
     echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --target=x86_64-efi --efi-directory=/mnt/boot --removable
+    grub-install --boot-directory=/mnt/boot "${DISK}"
     if [ $? -ne 0 ]; then
         echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
         exit 1
@@ -652,16 +644,9 @@ GRUB EFI Bootloader Install & Check${Color_Off}"
 
 if [[ -d "/sys/firmware/efi" ]]; then
     echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --target=x86_64-efi --efi-directory=/boot --removable
+    grub-install --efi-directory=/boot "${DISK}"
     if [ $? -ne 0 ]; then
         echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
-        exit 1
-    fi
-else
-    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
-    grub-install --target=i386-pc --boot-directory=/mnt/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
         exit 1
     fi
 fi
