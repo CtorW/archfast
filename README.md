@@ -1,6 +1,6 @@
 <div align="center">
   <br><br>
-  
+
 ![CTORW](https://github.com/user-attachments/assets/f85773b4-0fa9-471f-b376-020e880b83a9)
   <br><br>
 </div>
