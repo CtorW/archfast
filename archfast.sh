@@ -80,7 +80,7 @@ logo () {
     clear
 echo -ne "
 ${BCyan}-------------------------------------------------------------------------
-    _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
+   _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
  _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
  _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
@@ -488,15 +488,8 @@ cat /mnt/etc/fstab
 
 echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
-    grub-install --target=i386-pc --boot-directory=/mnt/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
-        exit 1
-    fi
-else
     echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --target=x86_64-efi --efi-directory=/mnt/boot --removable
+    grub-install --boot-directory=/mnt/boot "${DISK}"
     if [ $? -ne 0 ]; then
         echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
         exit 1
@@ -652,16 +645,9 @@ GRUB EFI Bootloader Install & Check${Color_Off}"
 
 if [[ -d "/sys/firmware/efi" ]]; then
     echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --target=x86_64-efi --efi-directory=/boot --removable
+    grub-install --efi-directory=/boot "${DISK}"
     if [ $? -ne 0 ]; then
         echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
-        exit 1
-    fi
-else
-    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
-    grub-install --target=i386-pc --boot-directory=/mnt/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
         exit 1
     fi
 fi
@@ -714,10 +700,8 @@ ${BGreen}-----------------------------------------------------------------------
                           Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
-
-sed -i 's/^%wheel ALL=(ALL) NOPASSWD: ALL/# %wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
+# Reverting temporary sudoers changes for security
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
