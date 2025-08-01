@@ -67,6 +67,14 @@ chmod +x archfast.sh
 
 🔁 Reboot your system
 
+🧏 Log in to your Machine $USERNAME|$PASSWORD
+
+### ⌨️ Now Run the fast-hyprland.sh
+```bash
+fast-hyprland.sh
+```
+Functions: Will install missing dependencies. (eg. fish, curl, wget) 
+
 # Choose your Dots in `fast-hyprland.sh`
 [HyDE](https://github.com/HyDE-Project/HyDE)
 
