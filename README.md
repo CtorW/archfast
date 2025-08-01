@@ -67,7 +67,7 @@ chmod +x archfast.sh
 
 🔁 Reboot your system
 
-# Hyprland Integration 
+# Choose your Dots in `fast-hyprland.sh`
 [HyDE](https://github.com/HyDE-Project/HyDE)
 
 [End-4](https://github.com/end-4/dots-hyprland)
