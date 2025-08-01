@@ -69,15 +69,52 @@ chmod +x archfast.sh
 
 ### ⌨️ Now Run the fast-hyprland.sh
 ```bash
+sudo chmod +x fast-hyprland.sh
 fast-hyprland.sh
 ```
 Functions: Will install missing dependencies. (eg. fish, curl, wget) 
 
 # Choose your Dots in `fast-hyprland.sh`
-[HyDE](https://github.com/HyDE-Project/HyDE)
+<div align="center">
+  <table>
+    <tr>
+      <td>HyDE</td>
+      <td>end-4</td>
+    </tr>
+    <tr>
+      <td>
+<img src="https://github.com/rishav12s/Vanta-Black/raw/Vanta-Black/screenshots/ss_2.png"/>
+      </td>
+      <td>
+<img src="https://end-4.github.io/dots-hyprland-wiki/screenshots/i-i.2.png"/>
+      </td>
+    </tr>
+  </table>
+</div>
 
-[End-4](https://github.com/end-4/dots-hyprland)
+<div align="center">
+  <table>
+    <tr>
+      <td>Hyprluna</td>
+      <td>Caelestia</td>
+    </tr>
+    <tr>
+      <td>
+<img src="https://github.com/Lunaris-Project/HyprLuna/blob/main/previews/6.png?raw=true"/>
+      </td>
+      <td>
+        
+<video src="https://github.com/user-attachments/assets/0840f496-575c-4ca6-83a8-87bb01a85c5f" style="max"></video>
+      </td>
+    </tr>
+  </table>
+</div>
 
-[Hyprluna](https://github.com/Lunaris-Project/HyprLuna)
 
-[Caelestia](https://github.com/caelestia-dots/caelestia)
+
+
+
+
+
+
+
