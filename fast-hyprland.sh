@@ -3,8 +3,8 @@
 # ==============================================================================
 # Hyprland Dotfiles Installer Script
 #
-# You should run this script after your base Arch Linux installation and a
-# reboot.
+# You should run this script after the archfast installation 
+# Reboot the Arch ISO installation
 # log in as $USERNAME$ then run ./fast-hyprland.sh
 #
 # Author: CtorW - Github - Thanks!
