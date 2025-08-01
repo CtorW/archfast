@@ -1,7 +1,5 @@
 <div align="center">
   <br><br>
-  
-![CTORW(2)](https://github.com/user-attachments/assets/ef5c4d11-bd22-4c6f-a671-aa3174594c77)
 
 ![CTORW](https://github.com/user-attachments/assets/f85773b4-0fa9-471f-b376-020e880b83a9)
   <br><br>
