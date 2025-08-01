@@ -613,7 +613,7 @@ chmod 0440 /etc/sudoers.d/10-custom-sudoers
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                         Adding User
+                  Adding User & fast-hyprland scipt
 -------------------------------------------------------------------------${Color_Off}
 "
 groupadd libvirt
@@ -623,6 +623,9 @@ echo "$USERNAME:$PASSWORD" | chpasswd
 echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
 echo $NAME_OF_MACHINE > /etc/hostname
 echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
+
+echo -e "${BGreen}Pulling fast-hyprland.sh transfer to /home/$USERNAME/${Color_Off}"
+wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
 
 if [[ ${FS} == "luks" ]]; then
     sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
