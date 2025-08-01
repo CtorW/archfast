@@ -1,8 +1,7 @@
 <div align="center">
   <br><br>
   
- ![CTORW](https://github.com/user-attachments/assets/60dc64e5-82f3-4b5c-af4e-453f7455e4e7)
-
+![CTORW(2)](https://github.com/user-attachments/assets/ef5c4d11-bd22-4c6f-a671-aa3174594c77)
 
   <img src="https://github.com/user-attachments/assets/5ea9f193-e984-4589-a865-79fac480abb5" alt="ArchEnhacedINS Logo/Banner" width="350"/>
   <br><br>
