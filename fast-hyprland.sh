@@ -247,7 +247,7 @@ main() {
                 echo -e "${BIGreen}KooL's Arch - Hyprland...${Color_Off}"
                 git clone --depth=1 https://github.com/JaKooLit/Arch-Hyprland.git ~/Arch-Hyprland
                 cd ~/Arch-Hyprland || { echo -e "${BIRed}Error: Failed to enter KooL's Arch-Hyprland directory.${Color_Off}"; exit 1; }
-                chmod +x install.sh && ./intall.sh
+                chmod +x install.sh && ./install.sh
                 echo -e "${BIGreen}KooL's Arch installation complete. You may need to reboot or log out.${Color_Off}"
                 break
                 ;;
