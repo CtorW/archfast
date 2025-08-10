@@ -190,6 +190,7 @@ main() {
             "end-4's dots-hyprland"
             "Lunaris-Project-Hyprluna"
             "Caelestia-dots"
+            "KooL's Arch - Hyprland"
             "Exit"
         )
         
@@ -243,6 +244,14 @@ main() {
                 break
                 ;;
             4)
+                echo -e "${BIGreen}KooL's Arch - Hyprland...${Color_Off}"
+                git clone --depth=1 https://github.com/JaKooLit/Arch-Hyprland.git ~/Arch-Hyprland
+                cd ~/Arch-Hyprland || { echo -e "${BIRed}Error: Failed to enter KooL's Arch-Hyprland directory.${Color_Off}"; exit 1; }
+                chmod +x install.sh && ./intall.sh
+                echo -e "${BIGreen}KooL's Arch installation complete. You may need to reboot or log out.${Color_Off}"
+                break
+                ;;
+            5)
                 echo -e "${BWhite}Exiting script. Goodbye :>${Color_Off}"
                 exit 0
                 ;;
