@@ -110,7 +110,13 @@ Functions: Will install missing dependencies. (eg. fish, curl, wget)
   </table>
 </div>
 
-
+# Tutorial 🔽☕️
+<table>
+  <tr>
+    <td>
+    </td>
+  </tr>
+</table>
 
 
 
