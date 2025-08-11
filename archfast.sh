@@ -537,9 +537,9 @@ cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 nc=$(grep -c ^"cpu cores" /proc/cpuinfo)
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                    You have ${nc} cores. And
-              changing the makeflags for ${nc} cores. Aswell as
-                   changing the compression settings.
+You have ${nc} cores. And
+changing the makeflags for ${nc} cores. Aswell as
+changing the compression settings.
 -------------------------------------------------------------------------${Color_Off}
 "
 TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
