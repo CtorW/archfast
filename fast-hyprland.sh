@@ -171,6 +171,16 @@ check_dependencies() {
     fi
 }
 
+install_caelestia_dependencies() {
+    echo -e "${BYellow}Installing Caelestia-specific dependencies: pipewire, wireplumber, pipewire-pulse...${Color_Off}"
+    sudo pacman -S --noconfirm pipewire wireplumber pipewire-pulse
+    if [ $? -ne 0 ]; then
+        echo -e "${BIRed}Error: Failed to install one or more Caelestia dependencies. Please install them manually.${Color_Off}"
+        exit 1
+    fi
+    echo -e "${BIGreen}Caelestia-specific dependencies successfully installed!${Color_Off}"
+}
+
 show_menu() {
     clear
     logo
@@ -222,7 +232,8 @@ main() {
                 ;;
             3)
                 echo -e "${BIGreen}Installing Caelestia-dots...${Color_Off}"
-                
+                install_caelestia_dependencies
+                 
                 git clone https://github.com/caelestia-dots/caelestia.git ~/.local/share/caelestia
                 echo -e "${BYellow}Caelestia-dots repository cloned to ~/.local/share/caelestia${Color_Off}"
                 
