@@ -563,6 +563,9 @@ echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
 echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
 echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
 
+sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
+sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+
 sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 
 sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
@@ -602,14 +605,6 @@ elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporat
 else
     echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
 fi
-
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                    Enabling Sudo Permissions
--------------------------------------------------------------------------${Color_Off}
-"
-echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-custom-sudoers
-chmod 0440 /etc/sudoers.d/10-custom-sudoers
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
