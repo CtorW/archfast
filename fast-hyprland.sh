@@ -92,13 +92,15 @@ select_option() {
     local num_options=${#options[@]}
     local selected=0
     
+    local BCyan_BG_Black="$(tput setab 6; tput setaf 0)"
+
     echo -e "${BIWhite}Please select an option using the arrow keys and Enter:${Color_Off}"
 
     for i in "${!options[@]}"; do
         if [ "$i" -eq $selected ]; then
-            echo -e "${BICyan}> ${options[$i]}${Color_Off}"
+            echo -e "${BCyan_BG_Black} > ${options[$i]} ${Color_Off}"
         else
-            echo -e "${BYellow}  ${options[$i]}${Color_Off}"
+            echo -e "${BYellow}   ${options[$i]} ${Color_Off}"
         fi
     done
 
@@ -108,9 +110,9 @@ select_option() {
         for i in "${!options[@]}"; do
             tput el
             if [ "$i" -eq $selected ]; then
-                echo -e "${BICyan}> ${options[$i]}${Color_Off}"
+                echo -e "${BCyan_BG_Black} > ${options[$i]} ${Color_Off}"
             else
-                echo -e "${BYellow}  ${options[$i]}${Color_Off}"
+                echo -e "${BYellow}   ${options[$i]} ${Color_Off}"
             fi
         done
 
