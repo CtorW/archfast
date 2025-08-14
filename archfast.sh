@@ -144,44 +144,38 @@ background_checks() {
 # ==============================================================================
 #                          Interactive Menus and Prompts
 # ==============================================================================
-
-# Function for a colorful, arrow-key selectable menu
 select_option() {
     local options=("$@")
     local num_options=${#options[@]}
     local selected=0
     
+    local BCyan_BG_Black="$(tput setab 6; tput setaf 0)"
+
     echo -e "${BIWhite}Please select an option using the arrow keys and Enter:${Color_Off}"
 
-    # Print the options for the first time
     for i in "${!options[@]}"; do
         if [ "$i" -eq $selected ]; then
-            echo -e "${BICyan}> ${options[$i]}${Color_Off}"
+            echo -e "${BCyan_BG_Black} > ${options[$i]} ${Color_Off}"
         else
-            echo -e "${BYellow}  ${options[$i]}${Color_Off}"
+            echo -e "${BYellow}   ${options[$i]} ${Color_Off}"
         fi
     done
 
-    # Start the key press loop
     while true; do
-        # Move cursor up to the beginning of the menu options for redrawing
         tput cuu "${num_options}"
         
-        # Redraw the options with the current selection highlighted
         for i in "${!options[@]}"; do
-            # Clear the current line before printing
             tput el
             if [ "$i" -eq $selected ]; then
-                echo -e "${BICyan}> ${options[$i]}${Color_Off}"
+                echo -e "${BCyan_BG_Black} > ${options[$i]} ${Color_Off}"
             else
-                echo -e "${BYellow}  ${options[$i]}${Color_Off}"
+                echo -e "${BYellow}   ${options[$i]} ${Color_Off}"
             fi
         done
 
-        # Read a single key press without echoing it
         read -rsn1 key
         case "$key" in
-            $'\x1b') # Arrow key escape sequence
+            $'\x1b') 
                 read -rsn2 -t 0.1 key
                 case "$key" in
                     '[A') # Up arrow
@@ -205,7 +199,6 @@ select_option() {
         esac
     done
 
-    # Return the index of the selected option
     return $selected
 }
 
