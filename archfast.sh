@@ -688,6 +688,8 @@ systemctl enable ntpd.service
 echo -e "${BGreen}  NTP enabled.${Color_Off}"
 systemctl disable dhcpcd.service
 echo -e "${BGreen}  DHCP disabled.${Color_Off}"
+systemctl start NetworkManager.service
+echo -e "${BGreen}  NetworkManager started.${Color_Off}"
 systemctl enable NetworkManager.service
 echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
 systemctl enable reflector.timer
