@@ -227,6 +227,8 @@ main() {
             2)
                 echo -e "${BIGreen}Installing Lunaris-Project-Hyprluna...${Color_Off}"
                 curl -sL hyprluna.org/install | bash
+                echo -e "${BIGreen}Running Lunaris-script...${Color_Off}"
+                ./Lunainstall.sh -m #stable
                 echo -e "${BIGreen}Lunaris-Project-Hyprluna installation complete. You may need to reboot or log out.${Color_Off}"
                 break
                 ;;
