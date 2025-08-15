@@ -74,21 +74,18 @@ exec 2>&1
 # ==============================================================================
 #                          Initial System Checks
 # ==============================================================================
-
-# Function to display the main logo and title
-logo () {
-    clear
-echo -ne "
+logo() {
+ clear
+ echo -en "
 ${BCyan}-------------------------------------------------------------------------
-                                                          .--.
-                                                         |o_o |
-█████████████████████████████████████████████████        |:_/ |
-██▀▄─██▄─▄▄▀█─▄▄▄─█─█─███▄─▄▄─██▀▄─██─▄▄▄▄█─▄─▄─█       //   \ \
-██─▀─███─▄─▄█─███▀█─▄─████─▄████─▀─██▄▄▄▄─███─███      (|     | )   
-▀▄▄▀▄▄▀▄▄▀▄▄▀▄▄▄▄▄▀▄▀▄▀▀▀▄▄▄▀▀▀▄▄▀▄▄▀▄▄▄▄▄▀▀▄▄▄▀▀     /'\_   _/`\
-                                                      \___)=(___/
+     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
+    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
+    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
+    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
+    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
-${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BYellow}                  Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 "
 }
@@ -378,7 +375,7 @@ sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 pacman -S --noconfirm --needed reflector rsync grub
 cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
 echo -e "${BCyan}-------------------------------------------------------------------------
-              Setting up $iso mirrors for faster downloads
+    Setting up $iso mirrors for faster downloads
 -------------------------------------------------------------------------${Color_Off}"
 reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
 if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
@@ -514,7 +511,7 @@ echo "root:${PASSWORD}" | chpasswd
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                        Network Setup
+   Network Setup
 -------------------------------------------------------------------------${Color_Off}
 "
 pacman -S --noconfirm --needed networkmanager dhcpcd
@@ -522,7 +519,7 @@ systemctl enable NetworkManager
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-              Setting up mirrors for optimal download
+    Setting up mirrors for optimal download
 -------------------------------------------------------------------------${Color_Off}
 "
 pacman -S --noconfirm --needed pacman-contrib curl
@@ -544,7 +541,7 @@ if [[ $TOTAL_MEM -gt 8000000 ]]; then
 fi
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-              Setup Language to US and set locale
+    Setup Language to US and set locale
 -------------------------------------------------------------------------${Color_Off}
 "
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
@@ -570,7 +567,7 @@ pacman -Sy --noconfirm --needed
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                     Installing Microcode
+    Installing Microcode
 -------------------------------------------------------------------------${Color_Off}
 "
 if grep -q "GenuineIntel" /proc/cpuinfo; then
@@ -585,7 +582,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                 Installing Graphics Drivers
+   Installing Graphics Drivers
 -------------------------------------------------------------------------${Color_Off}
 "
 if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
@@ -603,7 +600,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                  Adding User & fast-hyprland scipt
+    Adding User & fast-hyprland scipt
 -------------------------------------------------------------------------${Color_Off}
 "
 groupadd libvirt
@@ -624,15 +621,14 @@ fi
 
 echo -ne "
 ${BCyan}-------------------------------------------------------------------------
-                                                          .--.
-                                                         |o_o |
-█████████████████████████████████████████████████        |:_/ |
-██▀▄─██▄─▄▄▀█─▄▄▄─█─█─███▄─▄▄─██▀▄─██─▄▄▄▄█─▄─▄─█       //   \ \
-██─▀─███─▄─▄█─███▀█─▄─████─▄████─▀─██▄▄▄▄─███─███      (|     | )   
-▀▄▄▀▄▄▀▄▄▀▄▄▀▄▄▄▄▄▀▄▀▄▀▀▀▄▄▄▀▀▀▄▄▀▄▄▀▄▄▄▄▄▀▀▄▄▄▀▀     /'\_   _/`\
-                                                      \___)=(___/  
+     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
+    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
+    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
+    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
+    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
-${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BYellow}                  Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 
 ${BGreen}Final Setup and Configurations
@@ -649,7 +645,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                   Creating Grub Boot Menu
+     Creating Grub Boot Menu
 -------------------------------------------------------------------------${Color_Off}
 "
 if [[ "${FS}" == "luks" ]]; then
@@ -677,7 +673,7 @@ echo -e "${BGreen}Grub configuration complete!${Color_Off}"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                   Enabling Essential Services
+     Enabling Essential Services
 -------------------------------------------------------------------------${Color_Off}
 "
 ntpd -qg
@@ -694,7 +690,7 @@ echo -e "${BGreen}  Reflector enabled.${Color_Off}"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                          Cleaning
+     Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
 # Reverting temporary sudoers changes for security
