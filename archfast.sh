@@ -690,6 +690,14 @@ echo -e "${BGreen}  Reflector enabled.${Color_Off}"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
+    After reboot run Hyprland Dots installer (optional)
+-------------------------------------------------------------------------${Color_Off}
+echo -e "${BGreen} changing sudoers permission in Hyprland-dots installer script.${Color_Off}"
+sudo chmod +x fast-hyprland.sh
+echo -e "${BGreen} Done. Enjoy!${Color_Off}"
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
      Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
