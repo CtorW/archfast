@@ -613,6 +613,9 @@ echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
 
 echo -e "${BGreen}Pulling fast-hyprland.sh transfer to /home/$USERNAME/${Color_Off}"
 wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
+echo -e "${BGreen} changing permission in Hyprland-dots installer script.${Color_Off}"
+sudo chmod +x fast-hyprland.sh
+
 
 if [[ ${FS} == "luks" ]]; then
     sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
@@ -687,14 +690,6 @@ systemctl enable NetworkManager.service
 echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
 systemctl enable reflector.timer
 echo -e "${BGreen}  Reflector enabled.${Color_Off}"
-
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-    After reboot run Hyprland Dots installer (optional)
--------------------------------------------------------------------------${Color_Off}
-echo -e "${BGreen} changing sudoers permission in Hyprland-dots installer script.${Color_Off}"
-sudo chmod +x fast-hyprland.sh
-echo -e "${BGreen} Done. Enjoy!${Color_Off}"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
