@@ -611,11 +611,12 @@ echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
 echo $NAME_OF_MACHINE > /etc/hostname
 echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
 
-echo -e "${BGreen}Pulling fast-hyprland.sh transfer to /home/$USERNAME/${Color_Off}"
+echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
 wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
-echo -e "${BGreen} changing permission in Hyprland-dots installer script.${Color_Off}"
+wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-i3.sh -P /home/$USERNAME/
+echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
 sudo chmod +x fast-hyprland.sh
-
+sudo chmod +x fast-i3.sh
 
 if [[ ${FS} == "luks" ]]; then
     sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
