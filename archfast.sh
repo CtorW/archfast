@@ -90,12 +90,6 @@ ${BCyan}------------------------------------------------------------------------
 "
 }
 
-# Initial checks
-logo
-echo -ne "
-${BGreen}Verifying Arch Linux ISO is Booted${Color_Off}
-
-"
 if [ ! -f /usr/bin/pacstrap ]; then
     echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
     exit 1
@@ -150,8 +144,7 @@ userinfo () {
     
     # Prompt for username using whiptail
     USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
-    exit_status=$?
-    if [ $exit_status != 0 ]; then
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
@@ -161,15 +154,13 @@ userinfo () {
     local password_match=false
     while [ "$password_match" = false ]; do
         PASSWORD=$(whiptail --title "Password for $USERNAME" --passwordbox "Enter password:" 10 60 3>&1 1>&2 2>&3)
-        exit_status=$?
-        if [ $exit_status != 0 ]; then
+        if [ $? != 0 ]; then
             echo -e "${BRed}User canceled. Exiting.${Color_Off}"
             exit 1
         fi
         
         PASSWORD2=$(whiptail --title "Password for $USERNAME" --passwordbox "Re-enter password:" 10 60 3>&1 1>&2 2>&3)
-        exit_status=$?
-        if [ $exit_status != 0 ]; then
+        if [ $? != 0 ]; then
             echo -e "${BRed}User canceled. Exiting.${Color_Off}"
             exit 1
         fi
@@ -184,8 +175,7 @@ userinfo () {
     
     # Prompt for hostname
     NAME_OF_MACHINE=$(whiptail --title "Hostname Setup" --inputbox "Please name your machine (hostname):" 10 60 myarch 3>&1 1>&2 2>&3)
-    exit_status=$?
-    if [ $exit_status != 0 ]; then
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
@@ -204,8 +194,7 @@ diskpart () {
     done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
 
     DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
-    exit_status=$?
-    if [ $exit_status != 0 ]; then
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
@@ -223,8 +212,7 @@ filesystem () {
     "btrfs" "Btrfs with zstd compression and snapshots" ON \
     "ext4" "Ext4 - a simple and reliable choice" OFF \
     "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
-    exit_status=$?
-    if [ $exit_status != 0 ]; then
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
@@ -246,9 +234,17 @@ filesystem () {
 
 timezone () {
     TIME_ZONE=$(curl --fail https.ipapi.co/timezone)
-    if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
-        export TIMEZONE=$TIME_ZONE
+    if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
+        # If curl is successful and returns a value, ask for confirmation.
+        if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
+            export TIMEZONE=$TIME_ZONE
+        else
+            # If the user says no, or if curl failed, prompt for manual input.
+            NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
+            export TIMEZONE=$NEW_TIMEZONE
+        fi
     else
+        echo -e "${BYellow}Warning: Timezone auto-detection failed. Proceeding with manual prompt.${Color_Off}"
         NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
         export TIMEZONE=$NEW_TIMEZONE
     fi
