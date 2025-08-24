@@ -120,7 +120,7 @@ docker_check() {
 
 arch_check() {
     if [[ ! -e /etc/arch-release ]]; then
-        echo -e "${BRed}ERROR: This script must be run in Arch Linux! Exiting.${Color_Off}\n"
+        echo -e "${BRed}ERROR: This script must be run in Arch Linux! Exiting.${Color_Off}"
         exit 1
     fi
 }
@@ -255,9 +255,11 @@ diskpart () {
         dialog_options+=("$((i+1))" "${disks[$i]}")
     done
     
+    exec 3>&1
     local choice_raw=$(dialog --backtitle "Archfast Installer" --title "Disk Selection" \
-        --menu "Select a disk to install to:" 20 60 15 "${dialog_options[@]}" 3>&1 1>&2 2>&3)
-    
+        --menu "Select a disk to install to:" 20 60 15 "${dialog_options[@]}" 2>&1 1>&3)
+    exec 3>&-
+
     local disk_choice_raw=${disks[$((choice_raw-1))]}
     local disk=$(echo "$disk_choice_raw" | awk '{print $1}')
     
