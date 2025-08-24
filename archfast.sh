@@ -194,7 +194,7 @@ filesystem () {
 
 timezone () {
     logo
-    TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
+    TIME_ZONE=$(curl --fail https.ipapi.co/timezone)
     exec 3>&1
     TIME_ZONE_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Timezone Selection" \
         --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 50)
@@ -249,7 +249,13 @@ diskpart () {
     logo
     dialog --backtitle "Archfast Installer" --title "Warning" --msgbox "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK. Please be absolutely sure you have backed up any important data. There is no way to recover data after this process. *****I AM NOT RESPONSIBLE FOR ANY DATA LOSS*****" 15 60
     
-    local disks=($(lsblk -n --output KNAME,SIZE,MODEL | awk '$1~/^sd|hd|vd|nvme|mmcblk/{printf "%s (%s - %s) ", $1, $2, $3}'))
+    local disks=($(lsblk -n --output KNAME,SIZE,MODEL | awk '$1~/^sd|hd|vd|nvme|mmcblk/{printf "%s (%s - %s)", $1, $2, $3}'))
+    
+    if [[ ${#disks[@]} -eq 0 ]]; then
+        dialog --backtitle "Archfast Installer" --title "Error" --msgbox "No suitable disks were found. Please ensure the disk is properly connected and recognized by the system. Exiting." 10 60
+        exit 1
+    fi
+    
     local dialog_options=()
     for i in "${!disks[@]}"; do
         dialog_options+=("$((i+1))" "${disks[$i]}")
@@ -259,6 +265,12 @@ diskpart () {
     local choice_raw=$(dialog --backtitle "Archfast Installer" --title "Disk Selection" \
         --menu "Select a disk to install to:" 20 60 15 "${dialog_options[@]}" 2>&1 1>&3)
     exec 3>&-
+
+    if [[ -z "$choice_raw" ]]; then
+        dialog --backtitle "Archfast Installer" --title "Installation Canceled" \
+            --msgbox "Disk selection was canceled. Exiting." 10 50
+        exit 1
+    fi
 
     local disk_choice_raw=${disks[$((choice_raw-1))]}
     local disk=$(echo "$disk_choice_raw" | awk '{print $1}')
