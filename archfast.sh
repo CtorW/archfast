@@ -144,9 +144,6 @@ background_checks() {
 #                          Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
-    logo
-    echo -e "${BGreen}User Information${Color_Off}"
-
     # Install whiptail if it's not already installed
     echo -e "${BGreen}Checking for whiptail...${Color_Off}"
     pacman -S --noconfirm --needed whiptail
@@ -196,20 +193,24 @@ userinfo () {
 }
 
 diskpart () {
-    logo
-    echo -e "${BRed}WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.${Color_Off}"
-    echo -e "${BRed}Please be absolutely sure you have backed up any important data.${Color_Off}"
-    echo -e "${BRed}There is no way to recover data after this process. I AM NOT RESPONSIBLE FOR ANY DATA LOSS${Color_Off}"
-    echo -e "\n${BGreen}Available Disks:${Color_Off}"
-    lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk"
-    echo -ne "\n${BGreen}Enter the name of the disk to install to (e.g., sda): ${Color_Off}"
-    read -r DISK
-    export DISK="/dev/${DISK}"
-    echo -e "${BGreen}Disk selected: ${DISK}${Color_Off}"
+    # Fetch available disks and format them for the whiptail menu
+    disk_list=""
+    while read -r line; do
+        disk_name=$(echo "$line" | awk '{print $1}')
+        disk_size=$(echo "$line" | awk '{print $2}')
+        disk_model=$(echo "$line" | awk '{print $3}')
+        disk_list+="${disk_name} ${disk_size} \"${disk_model}\" "
+    done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
 
-    echo -ne "${BGreen}Is this an SSD? (y/n): ${Color_Off}"
-    read -r SSD_CHOICE
-    if [[ "$SSD_CHOICE" =~ ^[Yy]$ ]]; then
+    DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 --notags ${disk_list} 3>&1 1>&2 2>&3)
+    exit_status=$?
+    if [ $exit_status != 0 ]; then
+        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+        exit 1
+    fi
+    export DISK="/dev/${DISK}"
+
+    if (whiptail --title "SSD?" --yesno "Is this an SSD?" 10 60 3>&1 1>&2 2>&3); then
         export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
         export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
@@ -217,61 +218,44 @@ diskpart () {
 }
 
 filesystem () {
-    logo
-    echo -e "${BGreen}Filesystem Selection${Color_Off}"
-    echo -e "1) Btrfs with zstd compression and snapshots"
-    echo -e "2) Ext4 - a simple and reliable choice"
-    echo -e "3) Btrfs with LUKS full-disk encryption"
-    echo -ne "Please select a number for your filesystem: "
-    read -r FS_CHOICE
+    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:" 15 60 3 \
+    "btrfs" "Btrfs with zstd compression and snapshots" ON \
+    "ext4" "Ext4 - a simple and reliable choice" OFF \
+    "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
+    exit_status=$?
+    if [ $exit_status != 0 ]; then
+        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+        exit 1
+    fi
+    export FS=${FS_CHOICE}
     
-    case "$FS_CHOICE" in
-        "1") export FS=btrfs ;;
-        "2") export FS=ext4 ;;
-        "3")
-            export FS=luks
-            echo -e "${BGreen}You have selected LUKS encryption. You will be prompted to enter a strong password.${Color_Off}"
-            local password_match=false
-            while [ "$password_match" = false ]; do
-                echo -ne "Enter LUKS password: "
-                read -r -s LUKS_PASSWORD
-                echo
-                echo -ne "Re-enter LUKS password: "
-                read -r -s LUKS_PASSWORD2
-                echo
-                if [ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]; then
-                    password_match=true
-                else
-                    echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
-                fi
-            done
-            export LUKS_PASSWORD
-            ;;
-        *) echo -e "${BRed}Invalid selection. Exiting.${Color_Off}"; exit 1 ;;
-    esac
+    if [[ "${FS}" == "luks" ]]; then
+        LUKS_PASSWORD=""
+        LUKS_PASSWORD2="not_matching"
+        while [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; do
+            LUKS_PASSWORD=$(whiptail --title "LUKS Encryption" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
+            LUKS_PASSWORD2=$(whiptail --title "LUKS Encryption" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
+            if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; then
+                whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
+            fi
+        done
+        export LUKS_PASSWORD
+    fi
 }
 
 timezone () {
-    logo
     TIME_ZONE=$(curl --fail https.ipapi.co/timezone)
-    echo -e "${BGreen}System detected your timezone to be '${TIME_ZONE}'. Is this correct? (y/n): ${Color_Off}"
-    read -r TZ_CONFIRM
-    if [[ "$TZ_CONFIRM" =~ ^[Yy]$ ]]; then
+    if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
         export TIMEZONE=$TIME_ZONE
     else
-        echo -ne "Enter your desired timezone (e.g., Europe/London): "
-        read -r NEW_TIMEZONE
+        NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
         export TIMEZONE=$NEW_TIMEZONE
     fi
-    echo -e "${BGreen}Timezone set to ${TIMEZONE}${Color_Off}"
 }
 
 keymap () {
-    logo
-    echo -ne "${BGreen}Please enter your keyboard layout (e.g., us): ${Color_Off}"
-    read -r KEYMAP
+    KEYMAP=$(whiptail --title "Keyboard Layout" --inputbox "Please enter your keyboard layout (e.g., us):" 10 60 us 3>&1 1>&2 2>&3)
     export KEYMAP
-    echo -e "${BGreen}Keyboard layout set to: ${KEYMAP}${Color_Off}"
 }
 
 # ==============================================================================
@@ -291,14 +275,13 @@ timezone
 clear
 keymap
 
-echo -ne "\n${BGreen}Are you ready to begin the installation? (y/n) All data on the selected disk will be erased. ${Color_Off}"
-read -r CONFIRM
-if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+if (whiptail --title "Installation Confirmation" --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
+    echo -e "${BYellow}Starting the installation process...${Color_Off}"
+else
     echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
 fi
 
-echo -e "${BYellow}Starting the installation process...${Color_Off}"
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
 iso=$(curl -4 ifconfig.io/country_code)
 timedatectl set-ntp true
