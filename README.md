@@ -110,6 +110,17 @@ Functions: Will install missing dependencies. (eg. fish, curl, wget)
   </table>
 </div>
 
+### For qt icon theme 
+```bash
+~/.config/gtk-3.0/settings.ini
+~/.config/gtk-4.0/settings.ini
+```
+
+```bash
+[Settings]
+gtk-icon-theme-name=Papirus-Dark
+```
+
 
 
 
