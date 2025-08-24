@@ -85,62 +85,25 @@ logo() {
 }
   
 # ==============================================================================
-# Arrow-key selection function :> 
+# New `dialog` based menu function
 # ==============================================================================
-select_option() {
+show_menu_dialog() {
     local options=("$@")
     local num_options=${#options[@]}
-    local selected=0
     
-    echo -e "${BIWhite}Please select an option using the arrow keys and Enter:${Color_Off}"
-
+    local dialog_options=()
     for i in "${!options[@]}"; do
-        if [ "$i" -eq $selected ]; then
-            echo -e "${BICyan}> ${options[$i]}${Color_Off}"
-        else
-            echo -e "${BYellow}  ${options[$i]}${Color_Off}"
-        fi
+        dialog_options+=("$i" "${options[$i]}")
     done
-
-    while true; do
-        tput cuu "${num_options}"
-        
-        for i in "${!options[@]}"; do
-            tput el
-            if [ "$i" -eq $selected ]; then
-                echo -e "${BICyan}> ${options[$i]}${Color_Off}"
-            else
-                echo -e "${BYellow}  ${options[$i]}${Color_Off}"
-            fi
-        done
-
-        read -rsn1 key
-        case "$key" in
-            $'\x1b') 
-                read -rsn2 -t 0.1 key
-                case "$key" in
-                    '[A') # Up arrow
-                        ((selected--))
-                        if [ $selected -lt 0 ]; then
-                            selected=$((num_options - 1))
-                        fi
-                        ;;
-                    '[B') # Down arrow
-                        ((selected++))
-                        if [ $selected -ge $num_options ]; then
-                            selected=0
-                        fi
-                        ;;
-                esac
-                ;;
-            '') # Enter key
-                echo
-                break
-                ;;
-        esac
-    done
-
-    return $selected
+    
+    local choice=$(dialog --stdout \
+        --backtitle "Hyprland Dotfiles Installer" \
+        --title "Main Menu" \
+        --menu "Please select an option:" 20 60 "${num_options}" \
+        "${dialog_options[@]}")
+    
+    # Dialog returns the selected tag (index) to stdout.
+    echo "$choice"
 }
 
 check_dependencies() {
@@ -149,7 +112,7 @@ check_dependencies() {
         exit 1
     fi
     
-    local dependencies=("git" "curl" "fish")
+    local dependencies=("git" "curl" "fish" "dialog")
     local install_list=()
     for dep in "${dependencies[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
@@ -171,7 +134,17 @@ check_dependencies() {
     fi
 }
 
-show_menu() {
+install_caelestia_dependencies() {
+    echo -e "${BYellow}Installing Caelestia-specific dependencies: pipewire, wireplumber, pipewire-pulse...${Color_Off}"
+    sudo pacman -S --noconfirm pipewire wireplumber pipewire-pulse
+    if [ $? -ne 0 ]; then
+        echo -e "${BIRed}Error: Failed to install one or more Caelestia dependencies. Please install them manually.${Color_Off}"
+        exit 1
+    fi
+    echo -e "${BIGreen}Caelestia-specific dependencies successfully installed!${Color_Off}"
+}
+
+show_welcome_screen() {
     clear
     logo
     echo -e "${BWhite}=========================================="
@@ -183,19 +156,24 @@ main() {
     check_dependencies
 
     while true; do
-        show_menu
+        show_welcome_screen
         
         options=(
             "HyDE"
             "end-4's dots-hyprland"
             "Lunaris-Project-Hyprluna"
             "Caelestia-dots"
+            "KooL's Arch - Hyprland"
             "Exit"
         )
         
-        select_option "${options[@]}"
-        choice_index=$?
+        choice_index=$(show_menu_dialog "${options[@]}")
         
+        if [[ -z "$choice_index" ]]; then
+            echo -e "${BWhite}Exiting script. Goodbye :>${Color_Off}"
+            exit 0
+        fi
+
         case $choice_index in
             0)
                 echo -e "${BIGreen}Installing HyDE...${Color_Off}"
@@ -203,7 +181,7 @@ main() {
                 cd ~/HyDE/Scripts || { echo -e "${BIRed}Error: Failed to enter ~/HyDE/Scripts directory.${Color_Off}"; exit 1; }
                 ./install.sh
                 echo -e "${BIGreen}HyDE installation complete. You may need to reboot or log out.${Color_Off}"
-                break
+                read -p "Press Enter to continue..."
                 ;;
             1)
                 echo -e "${BIGreen}Installing end-4's dots-hyprland...${Color_Off}"
@@ -211,16 +189,19 @@ main() {
                 cd dots-hyprland || { echo -e "${BIRed}Error: Failed to enter dots-hyprland directory.${Color_Off}"; exit 1; }
                 ./install.sh
                 echo -e "${BIGreen}end-4's dots-hyprland installation complete. You may need to reboot or log out.${Color_Off}"
-                break
+                read -p "Press Enter to continue..."
                 ;;
             2)
                 echo -e "${BIGreen}Installing Lunaris-Project-Hyprluna...${Color_Off}"
                 curl -sL hyprluna.org/install | bash
+                echo -e "${BIGreen}Running Lunaris-script...${Color_Off}"
+                ./Lunainstall.sh -m #stable
                 echo -e "${BIGreen}Lunaris-Project-Hyprluna installation complete. You may need to reboot or log out.${Color_Off}"
-                break
+                read -p "Press Enter to continue..."
                 ;;
             3)
                 echo -e "${BIGreen}Installing Caelestia-dots...${Color_Off}"
+                install_caelestia_dependencies
                 
                 git clone https://github.com/caelestia-dots/caelestia.git ~/.local/share/caelestia
                 echo -e "${BYellow}Caelestia-dots repository cloned to ~/.local/share/caelestia${Color_Off}"
@@ -240,9 +221,17 @@ main() {
                 fish ~/.local/share/caelestia/install.fish $install_args
                 
                 echo -e "${BIGreen}Caelestia-dots installation complete. You may need to reboot or log out.${Color_Off}"
-                break
+                read -p "Press Enter to continue..."
                 ;;
             4)
+                echo -e "${BIGreen}KooL's Arch - Hyprland...${Color_Off}"
+                git clone --depth=1 https://github.com/JaKooLit/Arch-Hyprland.git ~/Arch-Hyprland
+                cd ~/Arch-Hyprland || { echo -e "${BIRed}Error: Failed to enter KooL's Arch-Hyprland directory.${Color_Off}"; exit 1; }
+                chmod +x install.sh && ./install.sh
+                echo -e "${BIGreen}KooL's Arch installation complete. You may need to reboot or log out.${Color_Off}"
+                read -p "Press Enter to continue..."
+                ;;
+            5)
                 echo -e "${BWhite}Exiting script. Goodbye :>${Color_Off}"
                 exit 0
                 ;;

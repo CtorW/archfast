@@ -74,17 +74,16 @@ exec 2>&1
 # ==============================================================================
 #                          Initial System Checks
 # ==============================================================================
-
-# Function to display the main logo and title
-logo () {
-    clear
-echo -ne "
+logo() {
+ clear
+ echo -en "
 ${BCyan}-------------------------------------------------------------------------
-   _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
- _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|     
+     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
+    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
+    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
+    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
+    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
 ${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
@@ -144,82 +143,35 @@ background_checks() {
 # ==============================================================================
 #                          Interactive Menus and Prompts
 # ==============================================================================
-
-# Function for a colorful, arrow-key selectable menu
-select_option() {
+# Function for a colorful, dialog-based menu
+show_menu_dialog() {
     local options=("$@")
     local num_options=${#options[@]}
-    local selected=0
     
-    echo -e "${BIWhite}Please select an option using the arrow keys and Enter:${Color_Off}"
-
-    # Print the options for the first time
+    local dialog_options=()
     for i in "${!options[@]}"; do
-        if [ "$i" -eq $selected ]; then
-            echo -e "${BICyan}> ${options[$i]}${Color_Off}"
-        else
-            echo -e "${BYellow}  ${options[$i]}${Color_Off}"
-        fi
+        dialog_options+=("$((i+1))" "${options[$i]}")
     done
-
-    # Start the key press loop
-    while true; do
-        # Move cursor up to the beginning of the menu options for redrawing
-        tput cuu "${num_options}"
-        
-        # Redraw the options with the current selection highlighted
-        for i in "${!options[@]}"; do
-            # Clear the current line before printing
-            tput el
-            if [ "$i" -eq $selected ]; then
-                echo -e "${BICyan}> ${options[$i]}${Color_Off}"
-            else
-                echo -e "${BYellow}  ${options[$i]}${Color_Off}"
-            fi
-        done
-
-        # Read a single key press without echoing it
-        read -rsn1 key
-        case "$key" in
-            $'\x1b') # Arrow key escape sequence
-                read -rsn2 -t 0.1 key
-                case "$key" in
-                    '[A') # Up arrow
-                        ((selected--))
-                        if [ $selected -lt 0 ]; then
-                            selected=$((num_options - 1))
-                        fi
-                        ;;
-                    '[B') # Down arrow
-                        ((selected++))
-                        if [ $selected -ge $num_options ]; then
-                            selected=0
-                        fi
-                        ;;
-                esac
-                ;;
-            '') # Enter key
-                echo
-                break
-                ;;
-        esac
-    done
-
-    # Return the index of the selected option
-    return $selected
+    
+    local choice=$(dialog --stdout \
+        --backtitle "Archfast Automated Installer" \
+        --title "Main Menu" \
+        --menu "Please select an option:" 20 60 "${num_options}" \
+        "${dialog_options[@]}")
+    
+    echo "$choice"
 }
 
 filesystem () {
     logo
     echo -e "${BGreen}Please Select your file system for both boot and root${Color_Off}"
     options=("btrfs" "ext4" "luks" "exit")
-    select_option "${options[@]}"
-    local selected_option=$?
+    choice=$(show_menu_dialog "${options[@]}")
 
-    case $selected_option in
-        0) export FS=btrfs;;
-        1) export FS=ext4;;
-        2)
+    case $choice in
+        1) export FS=btrfs;;
+        2) export FS=ext4;;
+        3)
             logo
             echo -e "${BYellow}Please enter a password for LUKS encryption.${Color_Off}"
             read -s -p "Enter LUKS password: " LUKS_PASSWORD
@@ -234,7 +186,7 @@ filesystem () {
             fi
             export FS=luks
             ;;
-        3) exit ;;
+        4) exit ;;
         *) echo -e "${BRed}Wrong option, please select again.${Color_Off}"; filesystem;;
     esac
 }
@@ -245,14 +197,13 @@ timezone () {
     echo -e "${BGreen}System detected your timezone to be '${time_zone}'.${Color_Off}"
     echo -e "${BYellow}Is this correct?${Color_Off}"
     options=("Yes" "No")
-    select_option "${options[@]}"
-    local selected_option=${options[$?]}
+    choice=$(show_menu_dialog "${options[@]}")
 
-    case "$selected_option" in
-        "Yes")
+    case "$choice" in
+        1)
             echo -e "${BGreen}${time_zone} set as timezone.${Color_Off}"
             export TIMEZONE=$time_zone;;
-        "No")
+        2)
             logo
             echo -e "${BYellow}Please enter your desired timezone (e.g., Europe/London):${Color_Off}"
             read -r new_timezone
@@ -267,8 +218,8 @@ keymap () {
     logo
     echo -e "${BGreen}Please select your keyboard layout from the list below:${Color_Off}"
     options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
-    select_option "${options[@]}"
-    local keymap=${options[$?]}
+    choice=$(show_menu_dialog "${options[@]}")
+    local keymap=${options[$((choice-1))]}
 
     echo -e "${BGreen}Keyboard layout set to: ${keymap}${Color_Off}"
     export KEYMAP=$keymap
@@ -278,12 +229,11 @@ drivessd () {
     logo
     echo -e "${BGreen}Is this an SSD?${Color_Off}"
     options=("Yes" "No")
-    select_option "${options[@]}"
-    local selected_option=${options[$?]}
+    choice=$(show_menu_dialog "${options[@]}")
 
-    case "$selected_option" in
-        "Yes") export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120";;
-        "No") export MOUNT_OPTIONS="noatime,compress=zstd,commit=120";;
+    case "$choice" in
+        1) export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120";;
+        2) export MOUNT_OPTIONS="noatime,compress=zstd,commit=120";;
         *) echo -e "${BRed}Wrong option. Try again.${Color_Off}"; drivessd;;
     esac
 }
@@ -298,15 +248,28 @@ ${BRed}------------------------------------------------------------------------
     *****I AM NOT RESPONSIBLE FOR ANY DATA LOSS*****
 ------------------------------------------------------------------------${Color_Off}"
 
-    PS3='
-    Please select the disk to install Arch Linux on: '
-    options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}'))
+    local options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}'))
+    local dialog_options=()
+    for i in "${!options[@]}"; do
+        dialog_options+=("$((i+1))" "${options[$i]%|*} (${options[$i]#*|})")
+    done
 
-    select_option "${options[@]}"
-    disk=${options[$?]%|*}
+    local choice=$(dialog --stdout \
+        --backtitle "Archfast Automated Installer" \
+        --title "Disk Selection" \
+        --menu "Please select the disk to install Arch Linux on:" 20 60 "${#options[@]}" \
+        "${dialog_options[@]}")
 
+    if [[ -z "$choice" ]]; then
+        echo -e "${BRed}No disk selected. Exiting.${Color_Off}"
+        exit 1
+    fi
+
+    local disk_choice_raw=${options[$((choice-1))]}
+    local disk=${disk_choice_raw%|*}
+    
     echo -e "\n${BGreen}Disk selected: ${disk}${Color_Off}\n"
-    export DISK=${disk%|*}
+    export DISK="${disk}"
 
     drivessd
 }
@@ -359,6 +322,7 @@ userinfo () {
 # ==============================================================================
 
 # Run initial checks before starting
+check_dependencies
 background_checks
 clear
 userinfo
@@ -429,7 +393,7 @@ subvolumesetup () {
     mountallsubvol
 }
 
-if [[ "${DISK}" =~ "nvme" ]]; then
+if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
     partition2=${DISK}p2
     partition3=${DISK}p3
 else
@@ -563,6 +527,9 @@ echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
 echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
 echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
 
+sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
+sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+
 sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 
 sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
@@ -605,15 +572,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                    Enabling Sudo Permissions
--------------------------------------------------------------------------${Color_Off}
-"
-echo "%wheel ALL=(ALL:ALL) ALL" > /etc/sudoers.d/10-custom-sudoers
-chmod 0440 /etc/sudoers.d/10-custom-sudoers
-
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                  Adding User & fast-hyprland scipt
+    Adding User & fast-hyprland scipt
 -------------------------------------------------------------------------${Color_Off}
 "
 groupadd libvirt
@@ -624,8 +583,10 @@ echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
 echo $NAME_OF_MACHINE > /etc/hostname
 echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
 
-echo -e "${BGreen}Pulling fast-hyprland.sh transfer to /home/$USERNAME/${Color_Off}"
+echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
 wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
+echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
+cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
 
 if [[ ${FS} == "luks" ]]; then
     sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
@@ -634,11 +595,12 @@ fi
 
 echo -ne "
 ${BCyan}-------------------------------------------------------------------------
-    _|_|    _|_|_|      _|_|_|  _|    _|  _|_|_|_|    _|_|      _|_|_|  _|_|_|_|_|  
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|  _|            _|      
- _|_|_|_|  _|_|_|    _|        _|_|_|_|  _|_|_|    _|_|_|_|    _|_|        _|      
- _|    _|  _|    _|  _|        _|    _|  _|        _|    _|        _|      _|      
- _|    _|  _|    _|    _|_|_|  _|    _|  _|        _|    _|  _|_|_|        _|     
+     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
+    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
+    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
+    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
+    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
 ${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
@@ -693,6 +655,8 @@ systemctl enable ntpd.service
 echo -e "${BGreen}  NTP enabled.${Color_Off}"
 systemctl disable dhcpcd.service
 echo -e "${BGreen}  DHCP disabled.${Color_Off}"
+systemctl start NetworkManager.service
+echo -e "${BGreen}  NetworkManager started.${Color_Off}"
 systemctl enable NetworkManager.service
 echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
 systemctl enable reflector.timer
