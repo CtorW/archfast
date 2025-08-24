@@ -140,181 +140,153 @@ background_checks() {
     docker_check
 }
 
+check_dependencies() {
+    echo -e "${BGreen}Checking for required packages...${Color_Off}"
+    if ! command -v dialog > /dev/null; then
+        echo -e "${BYellow}The 'dialog' tool is not found. Attempting to install it...${Color_Off}"
+        pacman -Sy --noconfirm dialog
+        if ! command -v dialog > /dev/null; then
+            echo -e "${BRed}ERROR: Failed to install 'dialog'. Please ensure you have an internet connection. Exiting.${Color_Off}"
+            exit 1
+        fi
+        echo -e "${BGreen}'dialog' has been successfully installed.${Color_Off}"
+    fi
+    echo -e "${BGreen}All dependencies are met. Continuing...${Color_Off}"
+}
+
 # ==============================================================================
 #                          Interactive Menus and Prompts
 # ==============================================================================
-# Function for a colorful, dialog-based menu
-show_menu_dialog() {
-    local options=("$@")
-    local num_options=${#options[@]}
-    
-    local dialog_options=()
-    for i in "${!options[@]}"; do
-        dialog_options+=("$((i+1))" "${options[$i]}")
-    done
-    
-    local choice=$(dialog --stdout \
-        --backtitle "Archfast Automated Installer" \
-        --title "Main Menu" \
-        --menu "Please select an option:" 20 60 "${num_options}" \
-        "${dialog_options[@]}")
-    
-    echo "$choice"
-}
-
 filesystem () {
     logo
-    echo -e "${BGreen}Please Select your file system for both boot and root${Color_Off}"
-    options=("btrfs" "ext4" "luks" "exit")
-    choice=$(show_menu_dialog "${options[@]}")
+    exec 3>&1
+    FS_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Filesystem Selection" \
+        --menu "Please select a filesystem for your installation" 15 50 4 \
+        "btrfs" "Btrfs with zstd compression and snapshots" \
+        "ext4" "Ext4 - a simple and reliable choice" \
+        "luks" "Btrfs with LUKS full-disk encryption" \
+        "exit" "Exit the installer" 2>&1 1>&3)
+    exec 3>&-
 
-    case $choice in
-        1) export FS=btrfs;;
-        2) export FS=ext4;;
-        3)
-            logo
-            echo -e "${BYellow}Please enter a password for LUKS encryption.${Color_Off}"
-            read -s -p "Enter LUKS password: " LUKS_PASSWORD
-            echo
-            read -s -p "Re-enter LUKS password: " LUKS_PASSWORD2
-            echo
-            if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; then
-                echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
-                sleep 2
-                filesystem
-                return
-            fi
+    case "$FS_CHOICE" in
+        "btrfs") export FS=btrfs ;;
+        "ext4") export FS=ext4 ;;
+        "luks")
             export FS=luks
+            dialog --backtitle "Archfast Installer" --title "LUKS Encryption Password" \
+                --msgbox "You have selected LUKS encryption. Please enter a strong password in the next step." 10 50
+            local password_match=false
+            while [ "$password_match" = false ]; do
+                LUKS_PASSWORD=$(dialog --backtitle "Archfast Installer" --title "LUKS Password" --passwordbox "Enter password:" 10 50 3>&1 1>&2 2>&3)
+                LUKS_PASSWORD2=$(dialog --backtitle "Archfast Installer" --title "LUKS Password" --passwordbox "Re-enter password:" 10 50 3>&1 1>&2 2>&3)
+                if [ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]; then
+                    password_match=true
+                else
+                    dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Passwords do not match. Please try again." 10 50
+                fi
+            done
+            export LUKS_PASSWORD
             ;;
-        4) exit ;;
-        *) echo -e "${BRed}Wrong option, please select again.${Color_Off}"; filesystem;;
+        "exit") exit ;;
+        *) dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Invalid selection. Please try again." 10 50; filesystem ;;
     esac
 }
 
 timezone () {
     logo
-    time_zone="$(curl --fail https://ipapi.co/timezone)"
-    echo -e "${BGreen}System detected your timezone to be '${time_zone}'.${Color_Off}"
-    echo -e "${BYellow}Is this correct?${Color_Off}"
-    options=("Yes" "No")
-    choice=$(show_menu_dialog "${options[@]}")
+    TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
+    exec 3>&1
+    TIME_ZONE_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Timezone Selection" \
+        --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 50)
+    exec 3>&-
 
-    case "$choice" in
+    case $? in
+        0)
+            export TIMEZONE=$TIME_ZONE
+            dialog --backtitle "Archfast Installer" --title "Timezone" \
+                --msgbox "Timezone set to ${TIMEZONE}" 10 50
+            ;;
         1)
-            echo -e "${BGreen}${time_zone} set as timezone.${Color_Off}"
-            export TIMEZONE=$time_zone;;
-        2)
-            logo
-            echo -e "${BYellow}Please enter your desired timezone (e.g., Europe/London):${Color_Off}"
-            read -r new_timezone
-            echo -e "${BGreen}${new_timezone} set as timezone.${Color_Off}"
-            export TIMEZONE=$new_timezone;;
-        *)
-            echo -e "${BRed}Wrong option. Try again.${Color_Off}"; timezone;;
+            NEW_TIMEZONE=$(dialog --backtitle "Archfast Installer" --title "Timezone" \
+                --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 50 "America/Los_Angeles" 3>&1 1>&2 2>&3)
+            if [ -z "$NEW_TIMEZONE" ]; then
+                dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Timezone cannot be empty." 10 50
+                timezone
+                return
+            fi
+            export TIMEZONE=$NEW_TIMEZONE
+            dialog --backtitle "Archfast Installer" --title "Timezone" \
+                --msgbox "Timezone set to ${TIMEZONE}" 10 50
+            ;;
     esac
 }
 
 keymap () {
     logo
-    echo -e "${BGreen}Please select your keyboard layout from the list below:${Color_Off}"
-    options=(us by ca cf cz de dk es et fa fi fr gr hu il it lt lv mk nl no pl ro ru se sg ua uk)
-    choice=$(show_menu_dialog "${options[@]}")
-    local keymap=${options[$((choice-1))]}
-
-    echo -e "${BGreen}Keyboard layout set to: ${keymap}${Color_Off}"
-    export KEYMAP=$keymap
+    exec 3>&1
+    KEYMAP_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Keyboard Layout" \
+        --inputbox "Please enter your keyboard layout (e.g., us):" 10 50 "us" 2>&1 1>&3)
+    exec 3>&-
+    export KEYMAP=$KEYMAP_CHOICE
+    dialog --backtitle "Archfast Installer" --title "Keymap" \
+        --msgbox "Keyboard layout set to: ${KEYMAP}" 10 50
 }
 
 drivessd () {
     logo
-    echo -e "${BGreen}Is this an SSD?${Color_Off}"
-    options=("Yes" "No")
-    choice=$(show_menu_dialog "${options[@]}")
+    exec 3>&1
+    SSD_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Drive Type" \
+        --yesno "Is this an SSD?" 10 50)
+    exec 3>&-
 
-    case "$choice" in
-        1) export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120";;
-        2) export MOUNT_OPTIONS="noatime,compress=zstd,commit=120";;
-        *) echo -e "${BRed}Wrong option. Try again.${Color_Off}"; drivessd;;
+    case $? in
+        0) export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120" ;;
+        1) export MOUNT_OPTIONS="noatime,compress=zstd,commit=120" ;;
     esac
 }
 
 diskpart () {
     logo
-    echo -e "
-${BRed}------------------------------------------------------------------------
-    WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK
-    Please be absolutely sure you have backed up any important data.
-    There is no way to recover data after this process.
-    *****I AM NOT RESPONSIBLE FOR ANY DATA LOSS*****
-------------------------------------------------------------------------${Color_Off}"
-
-    local options=($(lsblk -n --output TYPE,KNAME,SIZE | awk '$1=="disk"{print "/dev/"$2"|"$3}'))
-    local dialog_options=()
-    for i in "${!options[@]}"; do
-        dialog_options+=("$((i+1))" "${options[$i]%|*} (${options[$i]#*|})")
-    done
-
-    local choice=$(dialog --stdout \
-        --backtitle "Archfast Automated Installer" \
-        --title "Disk Selection" \
-        --menu "Please select the disk to install Arch Linux on:" 20 60 "${#options[@]}" \
-        "${dialog_options[@]}")
-
-    if [[ -z "$choice" ]]; then
-        echo -e "${BRed}No disk selected. Exiting.${Color_Off}"
-        exit 1
-    fi
-
-    local disk_choice_raw=${options[$((choice-1))]}
-    local disk=${disk_choice_raw%|*}
+    dialog --backtitle "Archfast Installer" --title "Warning" --msgbox "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK. Please be absolutely sure you have backed up any important data. There is no way to recover data after this process. *****I AM NOT RESPONSIBLE FOR ANY DATA LOSS*****" 15 60
     
-    echo -e "\n${BGreen}Disk selected: ${disk}${Color_Off}\n"
-    export DISK="${disk}"
+    local disks=($(lsblk -n --output KNAME,SIZE,MODEL | awk '$1~/^sd|hd|vd|nvme|mmcblk/{printf "%s (%s - %s) ", $1, $2, $3}'))
+    local dialog_options=()
+    for i in "${!disks[@]}"; do
+        dialog_options+=("$((i+1))" "${disks[$i]}")
+    done
+    
+    local choice_raw=$(dialog --backtitle "Archfast Installer" --title "Disk Selection" \
+        --menu "Select a disk to install to:" 20 60 15 "${dialog_options[@]}" 3>&1 1>&2 2>&3)
+    
+    local disk_choice_raw=${disks[$((choice_raw-1))]}
+    local disk=$(echo "$disk_choice_raw" | awk '{print $1}')
+    
+    dialog --backtitle "Archfast Installer" --title "Disk Selected" \
+        --msgbox "Disk selected: /dev/${disk}" 10 50
+    export DISK="/dev/${disk}"
 
     drivessd
 }
 
 userinfo () {
     logo
-    while true
-    do
-        read -r -p "${BYellow}Please enter a username:${Color_Off} " username
-        if [[ "${username,,}" =~ ^[a-z_]([a-z0-9_-]{0,31}|[a-z0-9_-]{0,30}\$)$ ]]
-        then
-            break
-        fi
-        echo -e "${BRed}Invalid username. Please try again.${Color_Off}"
-    done
-    export USERNAME=$username
+    USERNAME=$(dialog --backtitle "Archfast Installer" --title "User Information" --inputbox "Please enter a username:" 10 50 "" 3>&1 1>&2 2>&3)
+    export USERNAME
 
-    while true
-    do
-        read -rs -p "${BYellow}Please enter a password:${Color_Off} " PASSWORD1
-        echo -ne "\n"
-        read -rs -p "${BYellow}Please re-enter the password:${Color_Off} " PASSWORD2
-        echo -ne "\n"
-        if [[ "$PASSWORD1" == "$PASSWORD2" ]]; then
-            break
+    local password_match=false
+    while [ "$password_match" = false ]; do
+        PASSWORD=$(dialog --backtitle "Archfast Installer" --title "Password" --passwordbox "Enter password for '$USERNAME':" 10 50 3>&1 1>&2 2>&3)
+        PASSWORD2=$(dialog --backtitle "Archfast Installer" --title "Password" --passwordbox "Re-enter password:" 10 50 3>&1 1>&2 2>&3)
+        if [ "$PASSWORD" == "$PASSWORD2" ]; then
+            password_match=true
         else
-            echo -e "${BRed}ERROR: Passwords do not match. Please try again.${Color_Off}\n"
+            dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Passwords do not match. Please try again." 10 50
         fi
     done
-    export PASSWORD=$PASSWORD1
+    export PASSWORD
 
-    while true
-    do
-        read -r -p "${BYellow}Please name your machine (hostname):${Color_Off} " name_of_machine
-        if [[ "${name_of_machine,,}" =~ ^[a-z][a-z0-9_.-]{0,62}[a-z0-9]$ ]]
-        then
-            break
-        fi
-        read -r -p "${BRed}Hostname doesn't seem correct. Do you still want to save it? (y/n):${Color_Off} " force
-        if [[ "${force,,}" = "y" ]]
-        then
-            break
-        fi
-    done
-    export NAME_OF_MACHINE=$name_of_machine
+    NAME_OF_MACHINE=$(dialog --backtitle "Archfast Installer" --title "Hostname" --inputbox "Please name your machine (hostname):" 10 50 "" 3>&1 1>&2 2>&3)
+    export NAME_OF_MACHINE
 }
 
 # ==============================================================================
@@ -322,8 +294,9 @@ userinfo () {
 # ==============================================================================
 
 # Run initial checks before starting
-check_dependencies
 background_checks
+clear
+check_dependencies
 clear
 userinfo
 clear
@@ -334,6 +307,15 @@ clear
 timezone
 clear
 keymap
+
+dialog --backtitle "Archfast Installer" --title "Installation Confirmation" \
+    --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 50
+
+if [ $? -ne 0 ]; then
+    dialog --backtitle "Archfast Installer" --title "Installation Canceled" \
+        --msgbox "Installation canceled by user. Exiting." 10 50
+    exit 1
+fi
 
 echo -e "${BYellow}Starting the installation process...${Color_Off}"
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
