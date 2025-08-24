@@ -289,7 +289,7 @@ else
 fi
 
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
-iso=$(curl -4 https://ifconfig.io/country_code)
+iso=$(curl -4 ifconfig.io/country_code)
 timedatectl set-ntp true
 pacman -Sy
 pacman -S --noconfirm archlinux-keyring
