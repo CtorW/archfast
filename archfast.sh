@@ -194,15 +194,16 @@ userinfo () {
 
 diskpart () {
     # Fetch available disks and format them for the whiptail menu
-    disk_list=""
+    declare -a disk_list=()
     while read -r line; do
         disk_name=$(echo "$line" | awk '{print $1}')
         disk_size=$(echo "$line" | awk '{print $2}')
         disk_model=$(echo "$line" | awk '{print $3}')
-        disk_list+="${disk_name} \"${disk_size} ${disk_model}\" "
+        # Append the tag and item as separate array elements
+        disk_list+=("${disk_name}" "${disk_size} ${disk_model}")
     done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
 
-    DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 ${disk_list} 3>&1 1>&2 2>&3)
+    DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
     exit_status=$?
     if [ $exit_status != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
