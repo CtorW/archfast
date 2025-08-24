@@ -253,7 +253,7 @@ diskpart () {
     local i=1
     
     while read -r kname size model; do
-        disk_options+=("$i" "$kname ($size - $model)")
+        disk_options+=("$kname" "$kname ($size - $model)")
         i=$((i+1))
     done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
 
@@ -262,6 +262,9 @@ diskpart () {
         exit 1
     fi
     
+    export DIALOG_OK_LABEL="  Ok  "
+    export DIALOG_CANCEL_LABEL="Cancel"
+
     exec 3>&1
     local choice_raw=$(dialog --backtitle "Archfast Installer" --title "Disk Selection" \
         --menu "Select a disk to install to:" 20 60 15 "${disk_options[@]}" 2>&1 1>&3)
@@ -273,8 +276,7 @@ diskpart () {
         exit 1
     fi
 
-    local selected_info="${disk_options[$((choice_raw-1)) * 2 + 1]}"
-    local disk=$(echo "$selected_info" | cut -d' ' -f1)
+    local disk="$choice_raw"
     
     dialog --backtitle "Archfast Installer" --title "Disk Selected" \
         --msgbox "Disk selected: /dev/${disk}" 10 50
