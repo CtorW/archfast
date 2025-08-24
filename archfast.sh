@@ -233,7 +233,7 @@ filesystem () {
 }
 
 timezone () {
-    TIME_ZONE=$(curl --fail https.ipapi.co/timezone)
+    TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
     if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
         # If curl is successful and returns a value, ask for confirmation.
         if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
@@ -280,7 +280,7 @@ else
 fi
 
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
-iso=$(curl -4 ifconfig.io/country_code)
+iso=$(curl -4 https://ifconfig.io/country_code)
 timedatectl set-ntp true
 pacman -Sy
 pacman -S --noconfirm archlinux-keyring
