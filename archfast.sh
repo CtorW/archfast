@@ -140,138 +140,134 @@ background_checks() {
     docker_check
 }
 
-check_dependencies() {
-    echo -e "${BGreen}Checking for required packages...${Color_Off}"
-    if ! command -v gum > /dev/null; then
-        echo -e "${BYellow}The 'gum' tool is not found. Attempting to install it...${Color_Off}"
-        pacman -Sy --noconfirm gum
-        if ! command -v gum > /dev/null; then
-            echo -e "${BRed}ERROR: Failed to install 'gum'. Please ensure you have an internet connection. Exiting.${Color_Off}"
-            exit 1
-        fi
-        echo -e "${BGreen}'gum' has been successfully installed.${Color_Off}"
-    fi
-    echo -e "${BGreen}All dependencies are met. Continuing...${Color_Off}"
-}
-
 # ==============================================================================
-#                          Interactive Menus and Prompts (using Gum)
+#                          Interactive Prompts (using Rust TUI)
 # ==============================================================================
-filesystem () {
+userinfo () {
     logo
-    FS_CHOICE=$(gum choose "btrfs (with compression and snapshots)" "ext4 (a simple and reliable choice)" "luks (full-disk encryption with Btrfs)" "exit")
+    echo -e "${BGreen}User Information${Color_Off}"
+    
+    # 1. Install Rust and TUI dependencies
+    echo -e "${BGreen}Installing Rust toolchain and TUI dependencies...${Color_Off}"
+    pacman -R --noconfirm rustup > /dev/null 2>&1
+    pacman -S --noconfirm --needed rust cargo
+    pacman -S --noconfirm --needed libxcb libxkbcommon
 
-    case "$FS_CHOICE" in
-        "btrfs (with compression and snapshots)") export FS=btrfs ;;
-        "ext4 (a simple and reliable choice)") export FS=ext4 ;;
-        "luks (full-disk encryption with Btrfs)")
-            export FS=luks
-            gum format "You have selected LUKS encryption. You'll be prompted to enter a strong password in the next step."
-            local password_match=false
-            while [ "$password_match" = false ]; do
-                LUKS_PASSWORD=$(gum input --prompt="Enter password: " --password)
-                LUKS_PASSWORD2=$(gum input --prompt="Re-enter password: " --password)
-                if [ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]; then
-                    password_match=true
-                else
-                    gum format "Passwords do not match. Please try again."
-                fi
-            done
-            export LUKS_PASSWORD
-            ;;
-        "exit") exit ;;
-        *) gum format "Invalid selection. Please try again."; filesystem ;;
-    esac
-}
-
-timezone () {
-    logo
-    TIME_ZONE=$(curl --fail https.ipapi.co/timezone)
-    TIME_ZONE_CHOICE=$(gum confirm "System detected your timezone to be '${TIME_ZONE}'. Is this correct?")
-
-    if [[ "$TIME_ZONE_CHOICE" = "true" ]]; then
-        export TIMEZONE=$TIME_ZONE
-        gum format "Timezone set to ${TIMEZONE}"
+    # 2. Compile the Rust TUI program from the source file
+    echo -e "${BGreen}Compiling Rust TUI application...${Color_Off}"
+    if [ -d "tui" ]; then
+        pushd tui > /dev/null
+        cargo build --release
+        popd > /dev/null
     else
-        NEW_TIMEZONE=$(gum input --prompt="Enter your desired timezone (e.g., Europe/London):" --value="America/Los_Angeles")
-        if [ -z "$NEW_TIMEZONE" ]; then
-            gum format "Timezone cannot be empty."
-            timezone
-            return
-        fi
-        export TIMEZONE=$NEW_TIMEZONE
-        gum format "Timezone set to ${TIMEZONE}"
+        echo -e "${BRed}ERROR: 'tui' directory not found. Please create it and add 'tui_installer.rs' inside.${Color_Off}"
+        exit 1
     fi
+    
+    # 3. Execute the compiled Rust TUI to get the username
+    echo -e "${BGreen}Please enter a username in the TUI...${Color_Off}"
+    USERNAME=$(./tui/target/release/tui_installer)
+    export USERNAME
+
+    # 4. Prompt for password using simple bash read, as TUI for password is more complex
+    local password_match=false
+    while [ "$password_match" = false ]; do
+        echo -ne "Enter password for '$USERNAME': "
+        read -r -s PASSWORD
+        echo
+        echo -ne "Re-enter password: "
+        read -r -s PASSWORD2
+        echo
+        if [ "$PASSWORD" == "$PASSWORD2" ]; then
+            password_match=true
+        else
+            echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
+        fi
+    done
+    export PASSWORD
+
+    echo -ne "Please name your machine (hostname): "
+    read -r NAME_OF_MACHINE
+    export NAME_OF_MACHINE
 }
 
-keymap () {
+diskpart () {
     logo
-    KEYMAP_CHOICE=$(gum input --prompt="Please enter your keyboard layout (e.g., us):" --value="us")
-    export KEYMAP=$KEYMAP_CHOICE
-    gum format "Keyboard layout set to: ${KEYMAP}"
-}
+    echo -e "${BRed}WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.${Color_Off}"
+    echo -e "${BRed}Please be absolutely sure you have backed up any important data.${Color_Off}"
+    echo -e "${BRed}There is no way to recover data after this process. I AM NOT RESPONSIBLE FOR ANY DATA LOSS${Color_Off}"
+    echo -e "\n${BGreen}Available Disks:${Color_Off}"
+    lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk"
+    echo -ne "\n${BGreen}Enter the name of the disk to install to (e.g., sda): ${Color_Off}"
+    read -r DISK
+    export DISK="/dev/${DISK}"
+    echo -e "${BGreen}Disk selected: ${DISK}${Color_Off}"
 
-drivessd () {
-    logo
-    SSD_CHOICE=$(gum confirm "Is this an SSD?")
-
-    if [[ "$SSD_CHOICE" = "true" ]]; then
+    echo -ne "${BGreen}Is this an SSD? (y/n): ${Color_Off}"
+    read -r SSD_CHOICE
+    if [[ "$SSD_CHOICE" =~ ^[Yy]$ ]]; then
         export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
         export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
     fi
 }
 
-diskpart () {
+filesystem () {
     logo
-    gum format "# WARNING ⚠️\n\n**THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.** Please be absolutely sure you have backed up any important data. There is no way to recover data after this process. **I AM NOT RESPONSIBLE FOR ANY DATA LOSS**"
+    echo -e "${BGreen}Filesystem Selection${Color_Off}"
+    echo -e "1) Btrfs with zstd compression and snapshots"
+    echo -e "2) Ext4 - a simple and reliable choice"
+    echo -e "3) Btrfs with LUKS full-disk encryption"
+    echo -ne "Please select a number for your filesystem: "
+    read -r FS_CHOICE
     
-    local disk_options=()
-    
-    while read -r kname size model; do
-        disk_options+=("$kname ($size - $model)")
-    done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
-
-    if [[ ${#disk_options[@]} -eq 0 ]]; then
-        gum format "# Error\n\nNo suitable disks were found. Please ensure the disk is properly connected and recognized by the system. Exiting."
-        exit 1
-    fi
-    
-    local choice_full=$(gum choose "${disk_options[@]}")
-    
-    if [[ -z "$choice_full" ]]; then
-        gum format "# Installation Canceled\n\nDisk selection was canceled. Exiting."
-        exit 1
-    fi
-    
-    # Extract the disk name (e.g., "sda") from the full string
-    local disk=$(echo "$choice_full" | awk '{print $1}')
-    
-    gum format "# Disk Selected\n\nDisk selected: /dev/${disk}"
-    export DISK="/dev/${disk}"
-
-    drivessd
+    case "$FS_CHOICE" in
+        "1") export FS=btrfs ;;
+        "2") export FS=ext4 ;;
+        "3")
+            export FS=luks
+            echo -e "${BGreen}You have selected LUKS encryption. You will be prompted to enter a strong password.${Color_Off}"
+            local password_match=false
+            while [ "$password_match" = false ]; do
+                echo -ne "Enter LUKS password: "
+                read -r -s LUKS_PASSWORD
+                echo
+                echo -ne "Re-enter LUKS password: "
+                read -r -s LUKS_PASSWORD2
+                echo
+                if [ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]; then
+                    password_match=true
+                else
+                    echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
+                fi
+            done
+            export LUKS_PASSWORD
+            ;;
+        *) echo -e "${BRed}Invalid selection. Exiting.${Color_Off}"; exit 1 ;;
+    esac
 }
 
-userinfo () {
+timezone () {
     logo
-    USERNAME=$(gum input --prompt="Please enter a username:" --placeholder="e.g. yourname")
-    export USERNAME
+    TIME_ZONE=$(curl --fail https.ipapi.co/timezone)
+    echo -e "${BGreen}System detected your timezone to be '${TIME_ZONE}'. Is this correct? (y/n): ${Color_Off}"
+    read -r TZ_CONFIRM
+    if [[ "$TZ_CONFIRM" =~ ^[Yy]$ ]]; then
+        export TIMEZONE=$TIME_ZONE
+    else
+        echo -ne "Enter your desired timezone (e.g., Europe/London): "
+        read -r NEW_TIMEZONE
+        export TIMEZONE=$NEW_TIMEZONE
+    fi
+    echo -e "${BGreen}Timezone set to ${TIMEZONE}${Color_Off}"
+}
 
-    local password_match=false
-    while [ "$password_match" = false ]; do
-        PASSWORD=$(gum input --prompt="Enter password for '$USERNAME':" --password)
-        PASSWORD2=$(gum input --prompt="Re-enter password:" --password)
-        if [ "$PASSWORD" == "$PASSWORD2" ]; then
-            password_match=true
-        else
-            gum format "Passwords do not match. Please try again."
-        fi
-    done
-    export PASSWORD
-
-    NAME_OF_MACHINE=$(gum input --prompt="Please name your machine (hostname):")
-    export NAME_OF_MACHINE
+keymap () {
+    logo
+    echo -ne "${BGreen}Please enter your keyboard layout (e.g., us): ${Color_Off}"
+    read -r KEYMAP
+    export KEYMAP
+    echo -e "${BGreen}Keyboard layout set to: ${KEYMAP}${Color_Off}"
 }
 
 # ==============================================================================
@@ -280,8 +276,6 @@ userinfo () {
 
 # Run initial checks before starting
 background_checks
-clear
-check_dependencies
 clear
 userinfo
 clear
@@ -293,10 +287,10 @@ timezone
 clear
 keymap
 
-gum confirm "Are you ready to begin the installation? All data on the selected disk will be erased."
-
-if [ $? -ne 0 ]; then
-    gum format "Installation canceled by user. Exiting."
+echo -ne "\n${BGreen}Are you ready to begin the installation? (y/n) All data on the selected disk will be erased. ${Color_Off}"
+read -r CONFIRM
+if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+    echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
 fi
 
