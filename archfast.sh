@@ -141,151 +141,57 @@ background_checks() {
 }
 
 # ==============================================================================
-#                          Interactive Prompts (using Rust TUI)
+#                          Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
     logo
     echo -e "${BGreen}User Information${Color_Off}"
+
+    # Install whiptail if it's not already installed
+    echo -e "${BGreen}Checking for whiptail...${Color_Off}"
+    pacman -S --noconfirm --needed whiptail
     
-    # 1. Install Rust and TUI dependencies
-    echo -e "${BGreen}Installing Rust toolchain and TUI dependencies...${Color_Off}"
-    pacman -R --noconfirm rustup > /dev/null 2>&1
-    pacman -S --noconfirm --needed rust cargo libxcb libxkbcommon
-
-    # 2. Create the Rust TUI program on the fly
-    echo -e "${BGreen}Creating Rust TUI application source file...${Color_Off}"
-    mkdir -p tui/src
-    cat > tui/src/main.rs << 'EOF'
-use crossterm::{
-    event::{self, Event, KeyCode, KeyEventKind},
-    execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
-};
-use ratatui::{
-    prelude::{CrosstermBackend, Terminal},
-    style::{Color, Style, Stylize},
-    widgets::{Block, Borders, Paragraph},
-};
-use std::{io, time::Duration};
-
-fn main() -> io::Result<()> {
-    // setup terminal
-    enable_raw_mode()?;
-    let mut stdout = io::stdout();
-    execute!(stdout, EnterAlternateScreen)?;
-    let backend = CrosstermBackend::new(stdout);
-    let mut terminal = Terminal::new(backend)?;
-
-    let mut username = String::new();
-    let mut cursor_pos = 0;
-    
-    loop {
-        terminal.draw(|f| {
-            let size = f.size();
-            let block = Block::default()
-                .title("Arch Linux User Setup")
-                .borders(Borders::ALL)
-                .style(Style::default().fg(Color::LightBlue));
-            f.render_widget(block, size);
-
-            let prompt = Paragraph::new("Enter Username (press Enter to confirm):")
-                .style(Style::default().fg(Color::Green))
-                .left_aligned();
-            f.render_widget(prompt, size.with_height(1).with_width(size.width - 2).with_x(1).with_y(1));
-
-            let input = Paragraph::new(username.as_str())
-                .style(Style::default().fg(Color::White))
-                .left_aligned();
-            f.render_widget(input, size.with_height(1).with_width(size.width - 2).with_x(1).with_y(2));
-            
-            f.set_cursor(size.x + 1 + cursor_pos as u16, size.y + 2);
-
-        })?;
-
-        if event::poll(Duration::from_millis(100))? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Enter => {
-                            if !username.is_empty() {
-                                break;
-                            }
-                        }
-                        KeyCode::Backspace => {
-                            if cursor_pos > 0 {
-                                username.pop();
-                                cursor_pos -= 1;
-                            }
-                        }
-                        KeyCode::Char(c) => {
-                            username.push(c);
-                            cursor_pos += 1;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-        }
-    }
-
-    // restore terminal
-    disable_raw_mode()?;
-    execute!(terminal.backend_mut(), LeaveAlternateScreen,)?;
-
-    // Print the final username to stdout, which the shell script will capture
-    println!("{}", username);
-
-    Ok(())
-}
-EOF
-    cat > tui/Cargo.toml << 'EOF'
-[package]
-name = "tui_installer"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-crossterm = "0.27"
-ratatui = "0.26"
-rand = "0.8"
-EOF
-
-    # 3. Compile the Rust TUI program from the source file
-    echo -e "${BGreen}Compiling Rust TUI application...${Color_Off}"
-    pushd tui > /dev/null
-    cargo build --release
-    popd > /dev/null
-    
-    # Check if the compilation was successful
-    if [ ! -f "tui/target/release/tui_installer" ]; then
-        echo -e "${BRed}ERROR: Rust TUI compilation failed. Exiting.${Color_Off}"
+    # Prompt for username using whiptail
+    USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
+    exit_status=$?
+    if [ $exit_status != 0 ]; then
+        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
-    
-    # 4. Execute the compiled Rust TUI to get the username
-    echo -e "${BGreen}Please enter a username in the TUI...${Color_Off}"
-    USERNAME=$(./tui/target/release/tui_installer)
     export USERNAME
 
-    # 5. Prompt for password using simple bash read, as TUI for password is more complex
+    # Prompt for password
     local password_match=false
     while [ "$password_match" = false ]; do
-        echo -ne "Enter password for '$USERNAME': "
-        read -r -s PASSWORD
-        echo
-        echo -ne "Re-enter password: "
-        read -r -s PASSWORD2
-        echo
+        PASSWORD=$(whiptail --title "Password for $USERNAME" --passwordbox "Enter password:" 10 60 3>&1 1>&2 2>&3)
+        exit_status=$?
+        if [ $exit_status != 0 ]; then
+            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+            exit 1
+        fi
+        
+        PASSWORD2=$(whiptail --title "Password for $USERNAME" --passwordbox "Re-enter password:" 10 60 3>&1 1>&2 2>&3)
+        exit_status=$?
+        if [ $exit_status != 0 ]; then
+            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+            exit 1
+        fi
+
         if [ "$PASSWORD" == "$PASSWORD2" ]; then
             password_match=true
         else
-            echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
+            whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
         fi
     done
     export PASSWORD
-
-    echo -ne "Please name your machine (hostname): "
-    read -r NAME_OF_MACHINE
+    
+    # Prompt for hostname
+    NAME_OF_MACHINE=$(whiptail --title "Hostname Setup" --inputbox "Please name your machine (hostname):" 10 60 myarch 3>&1 1>&2 2>&3)
+    exit_status=$?
+    if [ $exit_status != 0 ]; then
+        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+        exit 1
+    fi
     export NAME_OF_MACHINE
 }
 
