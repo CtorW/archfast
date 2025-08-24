@@ -142,144 +142,112 @@ background_checks() {
 
 check_dependencies() {
     echo -e "${BGreen}Checking for required packages...${Color_Off}"
-    if ! command -v dialog > /dev/null; then
-        echo -e "${BYellow}The 'dialog' tool is not found. Attempting to install it...${Color_Off}"
-        pacman -Sy --noconfirm dialog
-        if ! command -v dialog > /dev/null; then
-            echo -e "${BRed}ERROR: Failed to install 'dialog'. Please ensure you have an internet connection. Exiting.${Color_Off}"
+    if ! command -v gum > /dev/null; then
+        echo -e "${BYellow}The 'gum' tool is not found. Attempting to install it...${Color_Off}"
+        pacman -Sy --noconfirm gum
+        if ! command -v gum > /dev/null; then
+            echo -e "${BRed}ERROR: Failed to install 'gum'. Please ensure you have an internet connection. Exiting.${Color_Off}"
             exit 1
         fi
-        echo -e "${BGreen}'dialog' has been successfully installed.${Color_Off}"
+        echo -e "${BGreen}'gum' has been successfully installed.${Color_Off}"
     fi
     echo -e "${BGreen}All dependencies are met. Continuing...${Color_Off}"
 }
 
 # ==============================================================================
-#                          Interactive Menus and Prompts
+#                          Interactive Menus and Prompts (using Gum)
 # ==============================================================================
 filesystem () {
     logo
-    exec 3>&1
-    FS_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Filesystem Selection" \
-        --menu "Please select a filesystem for your installation" 15 50 4 \
-        "btrfs" "Btrfs with zstd compression and snapshots" \
-        "ext4" "Ext4 - a simple and reliable choice" \
-        "luks" "Btrfs with LUKS full-disk encryption" \
-        "exit" "Exit the installer" 2>&1 1>&3)
-    exec 3>&-
+    FS_CHOICE=$(gum choose "btrfs (with compression and snapshots)" "ext4 (a simple and reliable choice)" "luks (full-disk encryption with Btrfs)" "exit")
 
     case "$FS_CHOICE" in
-        "btrfs") export FS=btrfs ;;
-        "ext4") export FS=ext4 ;;
-        "luks")
+        "btrfs (with compression and snapshots)") export FS=btrfs ;;
+        "ext4 (a simple and reliable choice)") export FS=ext4 ;;
+        "luks (full-disk encryption with Btrfs)")
             export FS=luks
-            dialog --backtitle "Archfast Installer" --title "LUKS Encryption Password" \
-                --msgbox "You have selected LUKS encryption. Please enter a strong password in the next step." 10 50
+            gum format "You have selected LUKS encryption. You'll be prompted to enter a strong password in the next step."
             local password_match=false
             while [ "$password_match" = false ]; do
-                LUKS_PASSWORD=$(dialog --backtitle "Archfast Installer" --title "LUKS Password" --passwordbox "Enter password:" 10 50 3>&1 1>&2 2>&3)
-                LUKS_PASSWORD2=$(dialog --backtitle "Archfast Installer" --title "LUKS Password" --passwordbox "Re-enter password:" 10 50 3>&1 1>&2 2>&3)
+                LUKS_PASSWORD=$(gum input --prompt="Enter password: " --password)
+                LUKS_PASSWORD2=$(gum input --prompt="Re-enter password: " --password)
                 if [ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]; then
                     password_match=true
                 else
-                    dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Passwords do not match. Please try again." 10 50
+                    gum format "Passwords do not match. Please try again."
                 fi
             done
             export LUKS_PASSWORD
             ;;
         "exit") exit ;;
-        *) dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Invalid selection. Please try again." 10 50; filesystem ;;
+        *) gum format "Invalid selection. Please try again."; filesystem ;;
     esac
 }
 
 timezone () {
     logo
     TIME_ZONE=$(curl --fail https.ipapi.co/timezone)
-    exec 3>&1
-    TIME_ZONE_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Timezone Selection" \
-        --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 50)
-    exec 3>&-
+    TIME_ZONE_CHOICE=$(gum confirm "System detected your timezone to be '${TIME_ZONE}'. Is this correct?")
 
-    case $? in
-        0)
-            export TIMEZONE=$TIME_ZONE
-            dialog --backtitle "Archfast Installer" --title "Timezone" \
-                --msgbox "Timezone set to ${TIMEZONE}" 10 50
-            ;;
-        1)
-            NEW_TIMEZONE=$(dialog --backtitle "Archfast Installer" --title "Timezone" \
-                --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 50 "America/Los_Angeles" 3>&1 1>&2 2>&3)
-            if [ -z "$NEW_TIMEZONE" ]; then
-                dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Timezone cannot be empty." 10 50
-                timezone
-                return
-            fi
-            export TIMEZONE=$NEW_TIMEZONE
-            dialog --backtitle "Archfast Installer" --title "Timezone" \
-                --msgbox "Timezone set to ${TIMEZONE}" 10 50
-            ;;
-    esac
+    if [[ "$TIME_ZONE_CHOICE" = "true" ]]; then
+        export TIMEZONE=$TIME_ZONE
+        gum format "Timezone set to ${TIMEZONE}"
+    else
+        NEW_TIMEZONE=$(gum input --prompt="Enter your desired timezone (e.g., Europe/London):" --value="America/Los_Angeles")
+        if [ -z "$NEW_TIMEZONE" ]; then
+            gum format "Timezone cannot be empty."
+            timezone
+            return
+        fi
+        export TIMEZONE=$NEW_TIMEZONE
+        gum format "Timezone set to ${TIMEZONE}"
+    fi
 }
 
 keymap () {
     logo
-    exec 3>&1
-    KEYMAP_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Keyboard Layout" \
-        --inputbox "Please enter your keyboard layout (e.g., us):" 10 50 "us" 2>&1 1>&3)
-    exec 3>&-
+    KEYMAP_CHOICE=$(gum input --prompt="Please enter your keyboard layout (e.g., us):" --value="us")
     export KEYMAP=$KEYMAP_CHOICE
-    dialog --backtitle "Archfast Installer" --title "Keymap" \
-        --msgbox "Keyboard layout set to: ${KEYMAP}" 10 50
+    gum format "Keyboard layout set to: ${KEYMAP}"
 }
 
 drivessd () {
     logo
-    exec 3>&1
-    SSD_CHOICE=$(dialog --backtitle "Archfast Installer" --title "Drive Type" \
-        --yesno "Is this an SSD?" 10 50)
-    exec 3>&-
+    SSD_CHOICE=$(gum confirm "Is this an SSD?")
 
-    case $? in
-        0) export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120" ;;
-        1) export MOUNT_OPTIONS="noatime,compress=zstd,commit=120" ;;
-    esac
+    if [[ "$SSD_CHOICE" = "true" ]]; then
+        export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+    else
+        export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
+    fi
 }
 
 diskpart () {
     logo
-    dialog --backtitle "Archfast Installer" --title "Warning" --msgbox "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK. Please be absolutely sure you have backed up any important data. There is no way to recover data after this process. *****I AM NOT RESPONSIBLE FOR ANY DATA LOSS*****" 15 60
+    gum format "# WARNING ⚠️\n\n**THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.** Please be absolutely sure you have backed up any important data. There is no way to recover data after this process. **I AM NOT RESPONSIBLE FOR ANY DATA LOSS**"
     
     local disk_options=()
-    local i=1
     
     while read -r kname size model; do
-        disk_options+=("$kname" "$kname ($size - $model)")
-        i=$((i+1))
+        disk_options+=("$kname ($size - $model)")
     done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
 
     if [[ ${#disk_options[@]} -eq 0 ]]; then
-        dialog --backtitle "Archfast Installer" --title "Error" --msgbox "No suitable disks were found. Please ensure the disk is properly connected and recognized by the system. Exiting." 10 60
+        gum format "# Error\n\nNo suitable disks were found. Please ensure the disk is properly connected and recognized by the system. Exiting."
         exit 1
     fi
     
-    export DIALOG_OK_LABEL="  Ok  "
-    export DIALOG_CANCEL_LABEL="Cancel"
-
-    exec 3>&1
-    local choice_raw=$(dialog --backtitle "Archfast Installer" --title "Disk Selection" \
-        --menu "Select a disk to install to:" 20 60 15 "${disk_options[@]}" 2>&1 1>&3)
-    exec 3>&-
-
-    if [[ -z "$choice_raw" ]]; then
-        dialog --backtitle "Archfast Installer" --title "Installation Canceled" \
-            --msgbox "Disk selection was canceled. Exiting." 10 50
+    local choice_full=$(gum choose "${disk_options[@]}")
+    
+    if [[ -z "$choice_full" ]]; then
+        gum format "# Installation Canceled\n\nDisk selection was canceled. Exiting."
         exit 1
     fi
-
-    local disk="$choice_raw"
     
-    dialog --backtitle "Archfast Installer" --title "Disk Selected" \
-        --msgbox "Disk selected: /dev/${disk}" 10 50
+    # Extract the disk name (e.g., "sda") from the full string
+    local disk=$(echo "$choice_full" | awk '{print $1}')
+    
+    gum format "# Disk Selected\n\nDisk selected: /dev/${disk}"
     export DISK="/dev/${disk}"
 
     drivessd
@@ -287,22 +255,22 @@ diskpart () {
 
 userinfo () {
     logo
-    USERNAME=$(dialog --backtitle "Archfast Installer" --title "User Information" --inputbox "Please enter a username:" 10 50 "" 3>&1 1>&2 2>&3)
+    USERNAME=$(gum input --prompt="Please enter a username:" --placeholder="e.g. yourname")
     export USERNAME
 
     local password_match=false
     while [ "$password_match" = false ]; do
-        PASSWORD=$(dialog --backtitle "Archfast Installer" --title "Password" --passwordbox "Enter password for '$USERNAME':" 10 50 3>&1 1>&2 2>&3)
-        PASSWORD2=$(dialog --backtitle "Archfast Installer" --title "Password" --passwordbox "Re-enter password:" 10 50 3>&1 1>&2 2>&3)
+        PASSWORD=$(gum input --prompt="Enter password for '$USERNAME':" --password)
+        PASSWORD2=$(gum input --prompt="Re-enter password:" --password)
         if [ "$PASSWORD" == "$PASSWORD2" ]; then
             password_match=true
         else
-            dialog --backtitle "Archfast Installer" --title "Error" --msgbox "Passwords do not match. Please try again." 10 50
+            gum format "Passwords do not match. Please try again."
         fi
     done
     export PASSWORD
 
-    NAME_OF_MACHINE=$(dialog --backtitle "Archfast Installer" --title "Hostname" --inputbox "Please name your machine (hostname):" 10 50 "" 3>&1 1>&2 2>&3)
+    NAME_OF_MACHINE=$(gum input --prompt="Please name your machine (hostname):")
     export NAME_OF_MACHINE
 }
 
@@ -325,12 +293,10 @@ timezone
 clear
 keymap
 
-dialog --backtitle "Archfast Installer" --title "Installation Confirmation" \
-    --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 50
+gum confirm "Are you ready to begin the installation? All data on the selected disk will be erased."
 
 if [ $? -ne 0 ]; then
-    dialog --backtitle "Archfast Installer" --title "Installation Canceled" \
-        --msgbox "Installation canceled by user. Exiting." 10 50
+    gum format "Installation canceled by user. Exiting."
     exit 1
 fi
 
