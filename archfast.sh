@@ -209,9 +209,9 @@ diskpart () {
 
 filesystem () {
     FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:" 15 60 3 \
-    "btrfs" "Btrfs with zstd compression and snapshots" OFF \
-    "ext4" "Ext4 - a simple and reliable choice" OFF \
-    "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
+    "btrfs" "Btrfs with zstd compression and snapshots ( )" OFF \
+    "ext4" "Ext4 - a simple and reliable choice ( )" OFF \
+    "luks" "Btrfs with LUKS full-disk encryption ( )" OFF 3>&1 1>&2 2>&3)
     if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
@@ -253,8 +253,8 @@ timezone () {
 keymap () {
     local keymap_list=()
     while read -r line; do
-        keymap_list+=("$line" "")
-    done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort)
+        keymap_list+=("$(echo "$line" | cut -d' ' -f1)" "$(echo "$line" | cut -d' ' -f2-)")
+    done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
 
     KEYMAP=$(whiptail --title "Keyboard Layout Selection" --menu "Please select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
     if [ $? != 0 ]; then
