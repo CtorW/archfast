@@ -120,6 +120,12 @@ Functions: Will install missing dependencies. (eg. fish, curl, wget)
 [Settings]
 gtk-icon-theme-name=Papirus-Dark
 ```
+### Caelestia theme config
+```bash
+yay nwg-look
+or
+https://github.com/nwg-piotr/nwg-look
+```
 
 
 
