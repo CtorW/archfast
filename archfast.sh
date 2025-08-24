@@ -249,21 +249,21 @@ diskpart () {
     logo
     dialog --backtitle "Archfast Installer" --title "Warning" --msgbox "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK. Please be absolutely sure you have backed up any important data. There is no way to recover data after this process. *****I AM NOT RESPONSIBLE FOR ANY DATA LOSS*****" 15 60
     
-    local disks=($(lsblk -n --output KNAME,SIZE,MODEL | awk '$1~/^sd|hd|vd|nvme|mmcblk/{printf "%s (%s - %s)", $1, $2, $3}'))
+    local disk_options=()
+    local i=1
     
-    if [[ ${#disks[@]} -eq 0 ]]; then
+        disk_options+=("$i" "$kname ($size - $model)")
+        i=$((i+1))
+    done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
+
+    if [[ ${#disk_options[@]} -eq 0 ]]; then
         dialog --backtitle "Archfast Installer" --title "Error" --msgbox "No suitable disks were found. Please ensure the disk is properly connected and recognized by the system. Exiting." 10 60
         exit 1
     fi
     
-    local dialog_options=()
-    for i in "${!disks[@]}"; do
-        dialog_options+=("$((i+1))" "${disks[$i]}")
-    done
-    
     exec 3>&1
     local choice_raw=$(dialog --backtitle "Archfast Installer" --title "Disk Selection" \
-        --menu "Select a disk to install to:" 20 60 15 "${dialog_options[@]}" 2>&1 1>&3)
+        --menu "Select a disk to install to:" 20 60 15 "${disk_options[@]}" 2>&1 1>&3)
     exec 3>&-
 
     if [[ -z "$choice_raw" ]]; then
@@ -272,8 +272,8 @@ diskpart () {
         exit 1
     fi
 
-    local disk_choice_raw=${disks[$((choice_raw-1))]}
-    local disk=$(echo "$disk_choice_raw" | awk '{print $1}')
+    local selected_info="${disk_options[$((choice_raw-1)) * 2 + 1]}"
+    local disk=$(echo "$selected_info" | cut -d' ' -f1)
     
     dialog --backtitle "Archfast Installer" --title "Disk Selected" \
         --msgbox "Disk selected: /dev/${disk}" 10 50
