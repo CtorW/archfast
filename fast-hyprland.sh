@@ -85,24 +85,19 @@ logo() {
 }
   
 # ==============================================================================
-# New `dialog` based menu function
+# New `whiptail` based menu function
 # ==============================================================================
-show_menu_dialog() {
-    local options=("$@")
-    local num_options=${#options[@]}
+show_whiptail_menu() {
+    local options=()
+    local item_list=("HyDE" "end-4's dots-hyprland" "Lunaris-Project-Hyprluna" "Caelestia-dots" "KooL's Arch - Hyprland" "Exit")
     
-    local dialog_options=()
-    for i in "${!options[@]}"; do
-        dialog_options+=("$i" "${options[$i]}")
+    for item in "${item_list[@]}"; do
+        options+=("$item" "")
     done
     
-    local choice=$(dialog --stdout \
-        --backtitle "Hyprland Dotfiles Installer" \
-        --title "Main Menu" \
-        --menu "Please select an option:" 20 60 "${num_options}" \
-        "${dialog_options[@]}")
+    local choice=$(whiptail --title "Hyprland Dotfiles Installer" --menu "Please select a dotfiles configuration to install:" 20 60 12 "${options[@]}" 3>&1 1>&2 2>&3)
     
-    # Dialog returns the selected tag (index) to stdout.
+    # Whiptail returns the selected tag to stdout on success, and an empty string on cancel.
     echo "$choice"
 }
 
@@ -112,7 +107,8 @@ check_dependencies() {
         exit 1
     fi
     
-    local dependencies=("git" "curl" "fish" "dialog")
+    # i use whiptail instead of dialog
+    local dependencies=("git" "curl" "fish" "whiptail")
     local install_list=()
     for dep in "${dependencies[@]}"; do
         if ! command -v "$dep" &> /dev/null; then
@@ -158,24 +154,15 @@ main() {
     while true; do
         show_welcome_screen
         
-        options=(
-            "HyDE"
-            "end-4's dots-hyprland"
-            "Lunaris-Project-Hyprluna"
-            "Caelestia-dots"
-            "KooL's Arch - Hyprland"
-            "Exit"
-        )
+        choice=$(show_whiptail_menu)
         
-        choice_index=$(show_menu_dialog "${options[@]}")
-        
-        if [[ -z "$choice_index" ]]; then
+        if [ $? != 0 ]; then
             echo -e "${BWhite}Exiting script. Goodbye :>${Color_Off}"
             exit 0
         fi
 
-        case $choice_index in
-            0)
+        case "$choice" in
+            "HyDE")
                 echo -e "${BIGreen}Installing HyDE...${Color_Off}"
                 git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
                 cd ~/HyDE/Scripts || { echo -e "${BIRed}Error: Failed to enter ~/HyDE/Scripts directory.${Color_Off}"; exit 1; }
@@ -183,7 +170,7 @@ main() {
                 echo -e "${BIGreen}HyDE installation complete. You may need to reboot or log out.${Color_Off}"
                 read -p "Press Enter to continue..."
                 ;;
-            1)
+            "end-4's dots-hyprland")
                 echo -e "${BIGreen}Installing end-4's dots-hyprland...${Color_Off}"
                 git clone https://github.com/end-4/dots-hyprland
                 cd dots-hyprland || { echo -e "${BIRed}Error: Failed to enter dots-hyprland directory.${Color_Off}"; exit 1; }
@@ -191,7 +178,7 @@ main() {
                 echo -e "${BIGreen}end-4's dots-hyprland installation complete. You may need to reboot or log out.${Color_Off}"
                 read -p "Press Enter to continue..."
                 ;;
-            2)
+            "Lunaris-Project-Hyprluna")
                 echo -e "${BIGreen}Installing Lunaris-Project-Hyprluna...${Color_Off}"
                 curl -sL hyprluna.org/install | bash
                 echo -e "${BIGreen}Running Lunaris-script...${Color_Off}"
@@ -199,7 +186,7 @@ main() {
                 echo -e "${BIGreen}Lunaris-Project-Hyprluna installation complete. You may need to reboot or log out.${Color_Off}"
                 read -p "Press Enter to continue..."
                 ;;
-            3)
+            "Caelestia-dots")
                 echo -e "${BIGreen}Installing Caelestia-dots...${Color_Off}"
                 install_caelestia_dependencies
                 
@@ -223,7 +210,7 @@ main() {
                 echo -e "${BIGreen}Caelestia-dots installation complete. You may need to reboot or log out.${Color_Off}"
                 read -p "Press Enter to continue..."
                 ;;
-            4)
+            "KooL's Arch - Hyprland")
                 echo -e "${BIGreen}KooL's Arch - Hyprland...${Color_Off}"
                 git clone --depth=1 https://github.com/JaKooLit/Arch-Hyprland.git ~/Arch-Hyprland
                 cd ~/Arch-Hyprland || { echo -e "${BIRed}Error: Failed to enter KooL's Arch-Hyprland directory.${Color_Off}"; exit 1; }
@@ -231,7 +218,7 @@ main() {
                 echo -e "${BIGreen}KooL's Arch installation complete. You may need to reboot or log out.${Color_Off}"
                 read -p "Press Enter to continue..."
                 ;;
-            5)
+            "Exit")
                 echo -e "${BWhite}Exiting script. Goodbye :>${Color_Off}"
                 exit 0
                 ;;

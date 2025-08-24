@@ -208,7 +208,7 @@ diskpart () {
 }
 
 filesystem () {
-    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:" 15 60 3 \
+    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:  (use space for selection)" 15 60 3 \
     "btrfs" "Btrfs with zstd compression and snapshots ( )" OFF \
     "ext4" "Ext4 - a simple and reliable choice ( )" OFF \
     "luks" "Btrfs with LUKS full-disk encryption ( )" OFF 3>&1 1>&2 2>&3)
@@ -282,7 +282,30 @@ clear
 keymap
 
 if (whiptail --title "Installation Confirmation" --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
-    echo -e "${BYellow}Starting the installation process...${Color_Off}"
+     echo -en "
+${BCyan}-------------------------------------------------------------------------
+██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
+██╔══██╗██║   ██║████╗  ██║████╗  ██║██║████╗  ██║██╔════╝               
+██████╔╝██║   ██║██╔██╗ ██║██╔██╗ ██║██║██╔██╗ ██║██║  ███╗              
+██╔══██╗██║   ██║██║╚██╗██║██║╚██╗██║██║██║╚██╗██║██║   ██║              
+██║  ██║╚██████╔╝██║ ╚████║██║ ╚████║██║██║ ╚████║╚██████╔╝██╗██╗██╗     
+╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝╚═╝     
+                                                                         
+ ██████╗ ██████╗ ██╗   ██╗██████╗     ██╗   ██╗ ██████╗ ██╗   ██╗██████╗ 
+██╔════╝ ██╔══██╗██║   ██║██╔══██╗    ╚██╗ ██╔╝██╔═══██╗██║   ██║██╔══██╗
+██║  ███╗██████╔╝██║   ██║██████╔╝     ╚████╔╝ ██║   ██║██║   ██║██████╔╝
+██║   ██║██╔══██╗██║   ██║██╔══██╗      ╚██╔╝  ██║   ██║██║   ██║██╔══██╗
+╚██████╔╝██║  ██║╚██████╔╝██████╔╝       ██║   ╚██████╔╝╚██████╔╝██║  ██║
+ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═════╝        ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝
+                                                                         
+ ██████╗ ██████╗ ███████╗███████╗███████╗███████╗                        
+██╔════╝██╔═══██╗██╔════╝██╔════╝██╔════╝██╔════╝                        
+██║     ██║   ██║█████╗  █████╗  █████╗  █████╗                          
+██║     ██║   ██║██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝                          
+╚██████╗╚██████╔╝██║     ██║     ███████╗███████╗                        
+ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝     ╚══════╝╚══════╝                        
+-------------------------------------------------------------------------${Color_Off}
+"
 else
     echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
@@ -450,18 +473,19 @@ pacman -S --noconfirm --needed pacman-contrib curl
 pacman -S --noconfirm --needed reflector rsync grub arch-install-scripts git ntp wget
 cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
-nc=$(grep -c ^"cpu cores" /proc/cpuinfo)
+nc=\$(grep -c ^"cpu cores" /proc/cpuinfo)
+export nc
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                    You have ${nc} cores. And
-              changing the makeflags for ${nc} cores. Aswell as
+                    You have \${nc} cores. And
+              changing the makeflags for \${nc} cores. Aswell as
                    changing the compression settings.
 -------------------------------------------------------------------------${Color_Off}
 "
-TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-if [[ $TOTAL_MEM -gt 8000000 ]]; then
-    sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j$nc\"/g" /etc/makepkg.conf
-    sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T $nc -z -)/g" /etc/makepkg.conf
+TOTAL_MEM=\$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+if [[ \$TOTAL_MEM -gt 8000000 ]]; then
+    sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\${nc}\"/g" /etc/makepkg.conf
+    sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \${nc} -z -)/g" /etc/makepkg.conf
 fi
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
