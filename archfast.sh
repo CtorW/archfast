@@ -252,6 +252,7 @@ diskpart () {
     local disk_options=()
     local i=1
     
+    while read -r kname size model; do
         disk_options+=("$i" "$kname ($size - $model)")
         i=$((i+1))
     done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
