@@ -97,7 +97,6 @@ show_whiptail_menu() {
     
     local choice=$(whiptail --title "Hyprland Dotfiles Installer" --menu "Please select a dotfiles configuration to install:" 20 60 12 "${options[@]}" 3>&1 1>&2 2>&3)
     
-    # Whiptail returns the selected tag to stdout on success, and an empty string on cancel.
     echo "$choice"
 }
 
@@ -107,7 +106,6 @@ check_dependencies() {
         exit 1
     fi
     
-    # i use whiptail instead of dialog
     local dependencies=("git" "curl" "fish" "whiptail")
     local install_list=()
     for dep in "${dependencies[@]}"; do
@@ -180,9 +178,10 @@ main() {
                 ;;
             "Lunaris-Project-Hyprluna")
                 echo -e "${BIGreen}Installing Lunaris-Project-Hyprluna...${Color_Off}"
-                curl -sL hyprluna.org/install | bash
+                git clone https://github.com/Lunaris-Project/HyprLuna.git ~/HyprLuna
                 echo -e "${BIGreen}Running Lunaris-script...${Color_Off}"
-                ./Lunainstall.sh -m #stable
+                cd ~/HyprLuna || { echo -e "${BIRed}Error: Failed to enter ~/HyprLuna directory.${Color_Off}"; exit 1; }
+                chmod +x installer.sh && ./installer.sh -m
                 echo -e "${BIGreen}Lunaris-Project-Hyprluna installation complete. You may need to reboot or log out.${Color_Off}"
                 read -p "Press Enter to continue..."
                 ;;
