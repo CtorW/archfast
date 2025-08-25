@@ -142,7 +142,7 @@ userinfo () {
     echo -e "${BGreen}Checking for whiptail...${Color_Off}"
     pacman -S --noconfirm --needed whiptail
     
-    # Prompt for username using whiptail
+    # Prompt for username
     USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
     if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
@@ -183,13 +183,11 @@ userinfo () {
 }
 
 diskpart () {
-    # Fetch available disks and format them for the whiptail menu
     declare -a disk_list=()
     while read -r line; do
         disk_name=$(echo "$line" | awk '{print $1}')
         disk_size=$(echo "$line" | awk '{print $2}')
         disk_model=$(echo "$line" | awk '{print $3}')
-        # Append the tag and item as separate array elements
         disk_list+=("${disk_name}" "${disk_size} ${disk_model}")
     done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
 
@@ -209,9 +207,9 @@ diskpart () {
 
 filesystem () {
     FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:  (use space for selection)" 15 60 3 \
-    "btrfs" "Btrfs with zstd compression and snapshots ( )" OFF \
-    "ext4" "Ext4 - a simple and reliable choice ( )" OFF \
-    "luks" "Btrfs with LUKS full-disk encryption ( )" OFF 3>&1 1>&2 2>&3)
+    "btrfs" "Btrfs with zstd compression and snapshots" OFF \
+    "ext4" "Ext4 - a simple and reliable choice" OFF \
+    "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
     if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
@@ -251,17 +249,35 @@ timezone () {
 }
 
 keymap () {
-    local keymap_list=()
-    while read -r line; do
-        keymap_list+=("$(echo "$line" | cut -d' ' -f1)" "$(echo "$line" | cut -d' ' -f2-)")
-    done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
+    local keymap_choice
 
-    KEYMAP=$(whiptail --title "Keyboard Layout Selection" --menu "Please select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
+    keymap_choice=$(whiptail --title "Keyboard Layout Selection" --menu "Select a common keyboard layout:" 15 60 7 \
+    "us" "United States" \
+    "de" "Germany" \
+    "fr" "France" \
+    "es" "Spain" \
+    "More..." "Browse all layouts" 3>&1 1>&2 2>&3)
+    
     if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
-    export KEYMAP
+
+    if [ "$keymap_choice" == "More..." ]; then
+        declare -a keymap_list=()
+        while read -r line; do
+            keymap_list+=("$(echo "$line" | cut -d' ' -f1)" "$(echo "$line" | cut -d' ' -f2-)")
+        done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
+
+        keymap_choice=$(whiptail --title "All Keyboard Layouts" --menu "Select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then
+            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+            exit 1
+        fi
+    fi
+
+    echo -e "${BGreen}Keyboard layout set to: ${keymap_choice}${Color_Off}"
+    export KEYMAP="${keymap_choice}"
 }
 
 # ==============================================================================
