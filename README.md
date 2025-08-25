@@ -56,7 +56,6 @@ Once your live environment is set up and you have an internet connection:
 ```bash
 git clone https://github.com/CtorW/archfast.git
 cd archfast
-chmod +x archfast.sh
 ./archfast.sh
 ```
 ### ✅ After Installation
