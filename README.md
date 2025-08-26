@@ -41,9 +41,9 @@ cd archfast
 ```
 ### ✅ After Installation
 
-💾 Eject USB/Installation Media
+### 💾 Eject USB/Installation Media
 
-🔁 Reboot your system
+### 🔁 Reboot your system
 
 🧏 Log in to your Machine $USERNAME|$PASSWORD
 
