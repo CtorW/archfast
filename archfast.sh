@@ -72,7 +72,7 @@ exec > >(tee -i archsetup.txt)
 exec 2>&1
 
 # ==============================================================================
-#                          Initial System Checks
+#             Initial System Checks
 # ==============================================================================
 logo() {
  clear
@@ -85,7 +85,7 @@ ${BCyan}------------------------------------------------------------------------
     ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
-${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BYellow}          Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 "
 }
@@ -135,7 +135,7 @@ background_checks() {
 }
 
 # ==============================================================================
-#                          Interactive Prompts (using Whiptail TUI)
+#             Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
     # Install whiptail if it's not already installed
@@ -286,7 +286,7 @@ user_packages () {
 }
 
 # ==============================================================================
-#                             Main Installation Workflow
+#                 Main Installation Workflow
 # ==============================================================================
 main_installation_process() {
     echo -e "${BYellow}Starting the installation process...${Color_Off}"
@@ -300,8 +300,7 @@ main_installation_process() {
     sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
     pacman -S --noconfirm --needed reflector rsync grub
     cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-    echo -en "
-"${BCyan}-------------------------------------------------------------------------
+    echo -e "${BCyan}-------------------------------------------------------------------------
         Setting up $iso mirrors for faster downloads
 -------------------------------------------------------------------------${Color_Off}"
     reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
@@ -415,8 +414,7 @@ main_installation_process() {
         fi
     fi
 
-    echo -en "${BGreen}Checking for low memory systems 8GB for swap file...${Color_Off}"
-
+    echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
     TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
     if [[ $TOTAL_MEM -lt 8000000 ]]; then
         echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
@@ -438,93 +436,94 @@ main_installation_process() {
 
     echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                        Network Setup
+        Network Setup
 -------------------------------------------------------------------------${Color_Off}
 "
-pacman -S --noconfirm --needed networkmanager dhcpcd
-systemctl enable NetworkManager
+    pacman -S --noconfirm --needed networkmanager dhcpcd
+    systemctl enable NetworkManager
 
-echo -ne "
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-              Setting up mirrors for optimal download
+        Setting up mirrors for optimal download
 -------------------------------------------------------------------------${Color_Off}
 "
-pacman -S --noconfirm --needed pacman-contrib curl
-pacman -S --noconfirm --needed reflector rsync grub arch-install-scripts git ntp wget
-cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+    pacman -S --noconfirm --needed pacman-contrib curl
+    pacman -S --noconfirm --needed reflector rsync grub arch-install-scripts git ntp wget
+    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
-nc=\$(grep -c ^"cpu cores" /proc/cpuinfo)
-export nc
-echo -ne "
+    # Using backticks for command substitution is a more classic approach that works well in here documents.
+    nc=$(grep -c ^"cpu cores" /proc/cpuinfo)
+    export nc
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                    You have \${nc} cores. And
-              changing the makeflags for \${nc} cores. Aswell as
-                   changing the compression settings.
+        You have \${nc} cores. And
+    changing the makeflags for \${nc} cores. Aswell as
+    changing the compression settings.
 -------------------------------------------------------------------------${Color_Off}
 "
-TOTAL_MEM=\$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-if [[ \$TOTAL_MEM -gt 8000000 ]]; then
-    sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\${nc}\"/g" /etc/makepkg.conf
-    sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \${nc} -z -)/g" /etc/makepkg.conf
-fi
-echo -ne "
+    TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+    if [[ \$TOTAL_MEM -gt 8000000 ]]; then
+        sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\${nc}\"/g" /etc/makepkg.conf
+        sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \${nc} -z -)/g" /etc/makepkg.conf
+    fi
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-              Setup Language to US and set locale
+        Setup Language to US and set locale
 -------------------------------------------------------------------------${Color_Off}
 "
-sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-locale-gen
-timedatectl --no-ask-password set-timezone ${TIMEZONE}
-timedatectl --no-ask-password set-ntp 1
-localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
-ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+    sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+    locale-gen
+    timedatectl --no-ask-password set-timezone ${TIMEZONE}
+    timedatectl --no-ask-password set-ntp 1
+    localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
+    ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 
-echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
-echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
-echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
+    echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
+    echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
+    echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
 
-sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+    sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
+    sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 
-sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+    sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 
-sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
+    sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
 
-sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
-pacman -Sy --noconfirm --needed
+    sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+    pacman -Sy --noconfirm --needed
 
-echo -ne "
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                     Installing Microcode
+          Installing Microcode
 -------------------------------------------------------------------------${Color_Off}
 "
-if grep -q "GenuineIntel" /proc/cpuinfo; then
-    echo -e "${BGreen}Installing Intel microcode...${Color_Off}"
-    pacman -S --noconfirm --needed intel-ucode
-elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-    echo -e "${BGreen}Installing AMD microcode...${Color_Off}"
-    pacman -S --noconfirm --needed amd-ucode
-else
-    echo -e "${BYellow}Unable to determine CPU vendor. Skipping microcode installation.${Color_Off}"
-fi
+    if grep -q "GenuineIntel" /proc/cpuinfo; then
+        echo -e "${BGreen}Installing Intel microcode...${Color_Off}"
+        pacman -S --noconfirm --needed intel-ucode
+    elif grep -q "AuthenticAMD" /proc/cpuinfo; then
+        echo -e "${BGreen}Installing AMD microcode...${Color_Off}"
+        pacman -S --noconfirm --needed amd-ucode
+    else
+        echo -e "${BYellow}Unable to determine CPU vendor. Skipping microcode installation.${Color_Off}"
+    fi
 
-echo -ne "
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                 Installing Graphics Drivers
+          Installing Graphics Drivers
 -------------------------------------------------------------------------${Color_Off}
 "
-if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
-    echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
-    pacman -S --noconfirm --needed nvidia-lts
-elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
-    echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
-    pacman -S --noconfirm --needed xf86-video-amdgpu
-elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
-    echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
-    pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
-else
-    echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
-fi
+    if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
+        echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
+        pacman -S --noconfirm --needed nvidia-lts
+    elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
+        echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
+        pacman -S --noconfirm --needed xf86-video-amdgpu
+    elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
+        echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
+        pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
+    else
+        echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
+    fi
 
     # ==============================================================================
     #                 User Package Installation Section
@@ -570,7 +569,7 @@ ${BCyan}------------------------------------------------------------------------
     ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
-${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BYellow}          Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 
 ${BGreen}Final Setup and Configurations
@@ -585,54 +584,54 @@ GRUB EFI Bootloader Install & Check${Color_Off}"
         fi
     fi
 
-echo -ne "
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                   Creating Grub Boot Menu
+        Creating Grub Boot Menu
 -------------------------------------------------------------------------${Color_Off}
 "
-if [[ "${FS}" == "luks" ]]; then
-    sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
-fi
-sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
+    if [[ "${FS}" == "luks" ]]; then
+        sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
+    fi
+    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
 
-echo -e "${BGreen}Updating grub...${Color_Off}"
-grub-mkconfig -o /boot/grub/grub.cfg
-if [ $? -ne 0 ]; then
-    echo -e "${BRed}ERROR: Failed to create grub.cfg. Exiting.${Color_Off}"
-    exit 1
-fi
+    echo -e "${BGreen}Updating grub...${Color_Off}"
+    grub-mkconfig -o /boot/grub/grub.cfg
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}ERROR: Failed to create grub.cfg. Exiting.${Color_Off}"
+        exit 1
+    fi
 
-echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
-if [ ! -f /boot/grub/grub.cfg ]; then
-    echo -e "${BRed}ERROR: grub.cfg was not created. Exiting.${Color_Off}"
-    exit 1
-fi
-if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
-    echo -e "${BRed}ERROR: grub.cfg does not contain an Arch Linux entry. Exiting.${Color_Off}"
-    exit 1
-fi
-echo -e "${BGreen}Grub configuration complete!${Color_Off}"
+    echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
+    if [ ! -f /boot/grub/grub.cfg ]; then
+        echo -e "${BRed}ERROR: grub.cfg was not created. Exiting.${Color_Off}"
+        exit 1
+    fi
+    if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
+        echo -e "${BRed}ERROR: grub.cfg does not contain an Arch Linux entry. Exiting.${Color_Off}"
+        exit 1
+    fi
+    echo -e "${BGreen}Grub configuration complete!${Color_Off}"
 
-echo -ne "
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                   Enabling Essential Services
+        Enabling Essential Services
 -------------------------------------------------------------------------${Color_Off}
 "
-ntpd -qg
-systemctl enable ntpd.service
-echo -e "${BGreen}  NTP enabled.${Color_Off}"
-systemctl disable dhcpcd.service
-echo -e "${BGreen}  DHCP disabled.${Color_Off}"
-systemctl start NetworkManager.service
-echo -e "${BGreen}  NetworkManager started.${Color_Off}"
-systemctl enable NetworkManager.service
-echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
-systemctl enable reflector.timer
-echo -e "${BGreen}  Reflector enabled.${Color_Off}"
+    ntpd -qg
+    systemctl enable ntpd.service
+    echo -e "${BGreen}  NTP enabled.${Color_Off}"
+    systemctl disable dhcpcd.service
+    echo -e "${BGreen}  DHCP disabled.${Color_Off}"
+    systemctl start NetworkManager.service
+    echo -e "${BGreen}  NetworkManager started.${Color_Off}"
+    systemctl enable NetworkManager.service
+    echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
+    systemctl enable reflector.timer
+    echo -e "${BGreen}  Reflector enabled.${Color_Off}"
 
-echo -ne "
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                          Cleaning
+        Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
     # Reverting temporary sudoers changes for security
@@ -646,6 +645,7 @@ ${BGreen}-----------------------------------------------------------------------
 # Run initial checks before starting
 background_checks
 clear
+logo
 userinfo
 clear
 diskpart
