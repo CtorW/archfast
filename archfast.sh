@@ -664,7 +664,9 @@ if (whiptail --title "Installation Confirmation" --yesno "All user input is coll
     echo -e "${BYellow}The Arch Linux installation is now running in the background. Grab your coffee and chill!${Color_Off}"
     echo -e "${BYellow}You can check the progress in the 'archsetup.txt' log file.${Color_Off}"
     echo -e "${BYellow}This script will automatically reboot the system once it is finished.${Color_Off}"
-    main_installation_process
+    
+    main_installation_process &
+    sleep 2
 else
     echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
