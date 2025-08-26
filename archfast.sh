@@ -70,22 +70,8 @@ fi
 # ==============================================================================
 #             Initial System Checks
 # ==============================================================================
-logo() {
- clear
- echo -en "
-${BCyan}-------------------------------------------------------------------------
-     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
-    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
-    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
-    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
-    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
-    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
--------------------------------------------------------------------------
-${BYellow}          Automated Arch Linux Installer${Color_Off}
-${BCyan}-------------------------------------------------------------------------${Color_Off}
-"
-}
 
+# Check if the script is run from an Arch Linux ISO environment
 if [ ! -f /usr/bin/pacstrap ]; then
     echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
     exit 1
@@ -227,7 +213,7 @@ filesystem () {
 }
 
 timezone () {
-    TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
+    TIME_ZONE=$(curl --fail https://ipapi.co/timezone 2>/dev/null)
     if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
         # If curl is successful and returns a value, ask for confirmation.
         if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
@@ -287,6 +273,13 @@ user_packages () {
 main_installation_process() {
     echo -e "${BYellow}Starting the installation process...${Color_Off}"
     echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
+    
+    # Check if curl is installed before attempting to use it
+    if ! command -v curl &> /dev/null; then
+        echo -e "${BYellow}curl not found. Installing now.${Color_Off}"
+        pacman -S --noconfirm --needed curl
+    fi
+
     iso=$(curl -4 ifconfig.io/country_code)
     timedatectl set-ntp true
     pacman -Sy
@@ -294,7 +287,7 @@ main_installation_process() {
     pacman -S --noconfirm --needed pacman-contrib terminus-font
     setfont ter-v18b
     sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-    pacman -S --noconfirm --needed reflector rsync grub
+    pacman -S --noconfirm --needed reflector rsync grub lspci
     cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
     echo -e "${BCyan}-------------------------------------------------------------------------
         Setting up $iso mirrors for faster downloads
@@ -317,12 +310,30 @@ main_installation_process() {
     sgdisk -Z "${DISK}"
     sgdisk -a 2048 -o "${DISK}"
 
-    sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
-    sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
-    sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
+    # Partitioning logic for BIOS and EFI systems
     if [[ ! -d "/sys/firmware/efi" ]]; then
-        sgdisk -A 1:set:2 "${DISK}"
+        # BIOS/Legacy system
+        sgdisk -n 1:2048:+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
+        sgdisk -n 2:0:+1G --typecode=2:8300 --change-name=2:'SWAP' "${DISK}" # Placeholder for swap, will be a file later
+        sgdisk -n 3:0:0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
+        partition2=${DISK}2
+        partition3=${DISK}3
+    else
+        # EFI system
+        sgdisk -n 1::+1GiB --typecode=1:ef00 --change-name=1:'EFIBOOT' "${DISK}"
+        sgdisk -n 2::+1G --typecode=2:8300 --change-name=2:'SWAP' "${DISK}" # Placeholder for swap, will be a file later
+        sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
+        if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
+            partition1=${DISK}p1
+            partition2=${DISK}p2
+            partition3=${DISK}p3
+        else
+            partition1=${DISK}1
+            partition2=${DISK}2
+            partition3=${DISK}3
+        fi
     fi
+
     partprobe "${DISK}"
 
     echo -e "${BGreen}Creating Filesystems...${Color_Off}"
@@ -343,25 +354,23 @@ main_installation_process() {
         mountallsubvol
     }
 
-    if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
-        partition2=${DISK}p2
-        partition3=${DISK}p3
-    else
-        partition2=${DISK}2
-        partition3=${DISK}3
-    fi
-
     if [[ "${FS}" == "btrfs" ]]; then
-        mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
+        if [[ -d "/sys/firmware/efi" ]]; then
+            mkfs.fat -F32 -n "EFIBOOT" "${partition1}"
+        fi
         mkfs.btrfs -f "${partition3}"
         mount -t btrfs "${partition3}" /mnt
         subvolumesetup
     elif [[ "${FS}" == "ext4" ]]; then
-        mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
+        if [[ -d "/sys/firmware/efi" ]]; then
+            mkfs.fat -F32 -n "EFIBOOT" "${partition1}"
+        fi
         mkfs.ext4 "${partition3}"
         mount -t ext4 "${partition3}" /mnt
     elif [[ "${FS}" == "luks" ]]; then
-        mkfs.fat -F32 "${partition2}"
+        if [[ -d "/sys/firmware/efi" ]]; then
+            mkfs.fat -F32 "${partition1}"
+        fi
         echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
         echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
         mkfs.btrfs "${partition3}"
@@ -370,16 +379,18 @@ main_installation_process() {
         ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
     fi
 
-    BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
-
     sync
     if ! mountpoint -q /mnt; then
         echo -e "${BRed}ERROR: Failed to mount ${partition3} to /mnt. Exiting.${Color_Off}"
         exit 1
     fi
-    mkdir -p /mnt/boot
-    mount -U "${BOOT_UUID}" /mnt/boot/
 
+    # Mount the boot partition
+    if [[ -d "/sys/firmware/efi" ]]; then
+        mkdir -p /mnt/boot
+        mount "${partition1}" /mnt/boot
+    fi
+    
     if ! grep -qs '/mnt' /proc/mounts; then
         echo -e "${BRed}ERROR: Drive is not mounted. Rebooting in 3 seconds...${Color_Off}" && sleep 1
         echo -e "${BRed}Rebooting in 2 seconds...${Color_Off}" && sleep 1
@@ -388,11 +399,15 @@ main_installation_process() {
     fi
 
     echo -e "${BGreen}Installing Arch Linux on Main Drive...${Color_Off}"
-    if [[ ! -d "/sys/firmware/efi" ]]; then
-        pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
+    
+    # Detect GPU and add `pciutils` to install it correctly later
+    GPU_TYPE=$(lspci | grep -i VGA)
+    if [[ -d "/sys/firmware/efi" ]]; then
+        pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr grub pciutils --noconfirm --needed
     else
-        pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr --noconfirm --needed
+        pacstrap /mnt base base-devel linux-lts linux-firmware grub pciutils --noconfirm --needed
     fi
+
     echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
     cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
 
@@ -400,16 +415,7 @@ main_installation_process() {
     echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
     cat /mnt/etc/fstab
 
-    echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
-    if [[ ! -d "/sys/firmware/efi" ]]; then
-        echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-        grub-install --boot-directory=/mnt/boot "${DISK}"
-        if [ $? -ne 0 ]; then
-            echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
-            exit 1
-        fi
-    fi
-
+    # Create swap file if memory is low
     echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
     TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
     if [[ $TOTAL_MEM -lt 8000000 ]]; then
@@ -426,7 +432,16 @@ main_installation_process() {
         echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
     fi
 
-arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' USER_PACKAGES='${USER_PACKAGES}' /bin/bash" <<EOF
+    echo -e "${BGreen}Installing GRUB Bootloader...${Color_Off}"
+    if [[ -d "/sys/firmware/efi" ]]; then
+        # UEFI
+        grub-install --target=x86_64-efi --efi-directory=/mnt/boot --bootloader-id=grub --removable
+    else
+        # BIOS
+        grub-install --target=i386-pc "${DISK}"
+    fi
+
+arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' USER_PACKAGES='${USER_PACKAGES}' GPU_TYPE='${GPU_TYPE}' /bin/bash" <<EOF
     echo "root:${PASSWORD}" | chpasswd
 
     echo -ne "
@@ -507,13 +522,13 @@ ${BGreen}-----------------------------------------------------------------------
           Installing Graphics Drivers
 -------------------------------------------------------------------------${Color_Off}
 "
-    if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
+    if echo "${GPU_TYPE}" | grep -E "NVIDIA|GeForce"; then
         echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
         pacman -S --noconfirm --needed nvidia-lts
-    elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
+    elif echo "${GPU_TYPE}" | grep 'VGA' | grep -E "Radeon|AMD"; then
         echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
         pacman -S --noconfirm --needed xf86-video-amdgpu
-    elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
+    elif echo "${GPU_TYPE}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
         echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
         pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
     else
@@ -553,30 +568,6 @@ ${BGreen}-----------------------------------------------------------------------
     if [[ ${FS} == "luks" ]]; then
         sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
         mkinitcpio -p linux-lts
-    fi
-
-    echo -ne "
-${BCyan}-------------------------------------------------------------------------
-     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
-    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
-    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
-    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
-    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
-    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
--------------------------------------------------------------------------
-${BYellow}          Automated Arch Linux Installer${Color_Off}
-${BCyan}-------------------------------------------------------------------------${Color_Off}
-
-${BGreen}Final Setup and Configurations
-GRUB EFI Bootloader Install & Check${Color_Off}"
-
-    if [[ -d "/sys/firmware/efi" ]]; then
-        echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-        grub-install --efi-directory=/boot "${DISK}"
-        if [ $? -ne 0 ]; then
-            echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
-            exit 1
-        fi
     fi
 
     echo -ne "
@@ -635,12 +626,17 @@ ${BGreen}-----------------------------------------------------------------------
     sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
 EOF
+    
+    # Final message after the chroot has completed
+    echo -e "${BGreen}Installation process finished! A log file 'archsetup.txt' has been created in your current directory.${Color_Off}"
+    echo -e "${BGreen}Press Enter to reboot your system into the new installation.${Color_Off}"
+    read -rp ""
+    reboot now
 }
 
 # Run initial checks before starting
-background_checks
 clear
-logo
+background_checks
 userinfo
 clear
 diskpart
@@ -654,12 +650,20 @@ clear
 user_packages
 
 # Installation Confirmation before starting the background process
-if (whiptail --title "Installation Confirmation" --yesno "All user input is collected. The installation will now run in the background. Are you ready to proceed? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
+if (whiptail --title "Installation Confirmation" --yesno "All user input is collected. The installation will now begin. A log file will be displayed in real-time.\n\nAre you ready to proceed? All data on the selected disk will be erased." 15 70 3>&1 1>&2 2>&3); then
     clear
-    logo
-    main_installation_process > archsetup.txt 2>&1 &
     
-    whiptail --title "Installation in Progress" --msgbox "The Arch Linux installation is now running in the background. Grab your coffee and chill!\n\nYou can check the progress in the 'archsetup.txt' log file.\n\nThis script will automatically reboot the system once it is finished." 15 70
+    # Run installation and tee the output to a log file
+    (main_installation_process 2>&1 | tee archsetup.txt) &
+    # Get the process ID of the background task
+    bg_pid=$!
+    
+    # Use tailbox to show the log file in real-time
+    whiptail --title "Arch Linux Installation Log" --scrolltext --tailbox archsetup.txt 25 80
+    
+    # Wait for the background process to finish before exiting the script
+    wait $bg_pid
+    
 else
     echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
