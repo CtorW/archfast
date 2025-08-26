@@ -430,8 +430,7 @@ main_installation_process() {
         echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
     fi
 
-    arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' USER_PACKAGES='${USER_PACKAGES}' /bin/bash" <<EOF
-
+arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' USER_PACKAGES='${USER_PACKAGES}' /bin/bash" <<EOF
     echo "root:${PASSWORD}" | chpasswd
 
     echo -ne "
