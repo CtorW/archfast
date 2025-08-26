@@ -280,199 +280,161 @@ keymap () {
     export KEYMAP="${keymap_choice}"
 }
 
+user_packages () {
+    USER_PACKAGES=$(whiptail --title "Optional Packages" --inputbox "Enter a space-separated list of packages to install (e.g., gnome firefox htop). Press Enter to skip:" 10 60 "" 3>&1 1>&2 2>&3)
+    export USER_PACKAGES
+}
+
 # ==============================================================================
 #                             Main Installation Workflow
 # ==============================================================================
-
-# Run initial checks before starting
-background_checks
-clear
-userinfo
-clear
-diskpart
-clear
-filesystem
-clear
-timezone
-clear
-keymap
-
-if (whiptail --title "Installation Confirmation" --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
-     echo -en "
-${BCyan}-------------------------------------------------------------------------
-██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
-██╔══██╗██║   ██║████╗  ██║████╗  ██║██║████╗  ██║██╔════╝               
-██████╔╝██║   ██║██╔██╗ ██║██╔██╗ ██║██║██╔██╗ ██║██║  ███╗              
-██╔══██╗██║   ██║██║╚██╗██║██║╚██╗██║██║██║╚██╗██║██║   ██║              
-██║  ██║╚██████╔╝██║ ╚████║██║ ╚████║██║██║ ╚████║╚██████╔╝██╗██╗██╗     
-╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝╚═╝     
-                                                                         
- ██████╗ ██████╗ ██╗   ██╗██████╗     ██╗   ██╗ ██████╗ ██╗   ██╗██████╗ 
-██╔════╝ ██╔══██╗██║   ██║██╔══██╗    ╚██╗ ██╔╝██╔═══██╗██║   ██║██╔══██╗
-██║  ███╗██████╔╝██║   ██║██████╔╝     ╚████╔╝ ██║   ██║██║   ██║██████╔╝
-██║   ██║██╔══██╗██║   ██║██╔══██╗      ╚██╔╝  ██║   ██║██║   ██║██╔══██╗
-╚██████╔╝██║  ██║╚██████╔╝██████╔╝       ██║   ╚██████╔╝╚██████╔╝██║  ██║
- ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═════╝        ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝
-                                                                         
- ██████╗ ██████╗ ███████╗███████╗███████╗███████╗                        
-██╔════╝██╔═══██╗██╔════╝██╔════╝██╔════╝██╔════╝                        
-██║     ██║   ██║█████╗  █████╗  █████╗  █████╗                          
-██║     ██║   ██║██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝                          
-╚██████╗╚██████╔╝██║     ██║     ███████╗███████╗                        
- ╚═════╝ ╚═════╝ ╚═╝     ╚═╝     ╚══════╝╚══════╝                        
--------------------------------------------------------------------------${Color_Off}
-"
-else
-    echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
-    exit 1
-fi
-
-echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
-iso=$(curl -4 ifconfig.io/country_code)
-timedatectl set-ntp true
-pacman -Sy
-pacman -S --noconfirm archlinux-keyring
-pacman -S --noconfirm --needed pacman-contrib terminus-font
-setfont ter-v18b
-sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-pacman -S --noconfirm --needed reflector rsync grub
-cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-echo -e "${BCyan}-------------------------------------------------------------------------
-              Setting up $iso mirrors for faster downloads
+main_installation_process() {
+    echo -e "${BYellow}Starting the installation process...${Color_Off}"
+    echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
+    iso=$(curl -4 ifconfig.io/country_code)
+    timedatectl set-ntp true
+    pacman -Sy
+    pacman -S --noconfirm archlinux-keyring
+    pacman -S --noconfirm --needed pacman-contrib terminus-font
+    setfont ter-v18b
+    sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+    pacman -S --noconfirm --needed reflector rsync grub
+    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+    echo -e "${BCyan}-------------------------------------------------------------------------
+        Setting up $iso mirrors for faster downloads
 -------------------------------------------------------------------------${Color_Off}"
-reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
-if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-    echo -e "${BRed}Warning: Reflector failed. Restoring original mirrorlist.${Color_Off}"
-    cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
-fi
+    reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
+    if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
+        echo -e "${BRed}Warning: Reflector failed. Restoring original mirrorlist.${Color_Off}"
+        cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
+    fi
 
-if [ ! -d "/mnt" ]; then
-    mkdir /mnt
-fi
+    if [ ! -d "/mnt" ]; then
+        mkdir /mnt
+    fi
 
-echo -e "${BGreen}Installing Prerequisites...${Color_Off}"
-pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
+    echo -e "${BGreen}Installing Prerequisites...${Color_Off}"
+    pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
 
-echo -e "${BGreen}Formatting Disk...${Color_Off}"
-umount -A --recursive /mnt
-sgdisk -Z "${DISK}"
-sgdisk -a 2048 -o "${DISK}"
+    echo -e "${BGreen}Formatting Disk...${Color_Off}"
+    umount -A --recursive /mnt
+    sgdisk -Z "${DISK}"
+    sgdisk -a 2048 -o "${DISK}"
 
-sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
-sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
-sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
-if [[ ! -d "/sys/firmware/efi" ]]; then
-    sgdisk -A 1:set:2 "${DISK}"
-fi
-partprobe "${DISK}"
+    sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
+    sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
+    sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
+    if [[ ! -d "/sys/firmware/efi" ]]; then
+        sgdisk -A 1:set:2 "${DISK}"
+    fi
+    partprobe "${DISK}"
 
-echo -e "${BGreen}Creating Filesystems...${Color_Off}"
-createsubvolumes () {
-    btrfs subvolume create /mnt/@
-    btrfs subvolume create /mnt/@home
-}
+    echo -e "${BGreen}Creating Filesystems...${Color_Off}"
+    createsubvolumes () {
+        btrfs subvolume create /mnt/@
+        btrfs subvolume create /mnt/@home
+    }
 
-mountallsubvol () {
-    mount -o "${MOUNT_OPTIONS}",subvol=@home "${partition3}" /mnt/home
-}
+    mountallsubvol () {
+        mount -o "${MOUNT_OPTIONS}",subvol=@home "${partition3}" /mnt/home
+    }
 
-subvolumesetup () {
-    createsubvolumes
-    umount /mnt
-    mount -o "${MOUNT_OPTIONS}",subvol=@ "${partition3}" /mnt
-    mkdir -p /mnt/home
-    mountallsubvol
-}
+    subvolumesetup () {
+        createsubvolumes
+        umount /mnt
+        mount -o "${MOUNT_OPTIONS}",subvol=@ "${partition3}" /mnt
+        mkdir -p /mnt/home
+        mountallsubvol
+    }
 
-if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
-    partition2=${DISK}p2
-    partition3=${DISK}p3
-else
-    partition2=${DISK}2
-    partition3=${DISK}3
-fi
+    if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
+        partition2=${DISK}p2
+        partition3=${DISK}p3
+    else
+        partition2=${DISK}2
+        partition3=${DISK}3
+    fi
 
-if [[ "${FS}" == "btrfs" ]]; then
-    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
-    mkfs.btrfs -f "${partition3}"
-    mount -t btrfs "${partition3}" /mnt
-    subvolumesetup
-elif [[ "${FS}" == "ext4" ]]; then
-    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
-    mkfs.ext4 "${partition3}"
-    mount -t ext4 "${partition3}" /mnt
-elif [[ "${FS}" == "luks" ]]; then
-    mkfs.fat -F32 "${partition2}"
-    echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
-    echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-    mkfs.btrfs "${partition3}"
-    mount -t btrfs "${partition3}" /mnt
-    subvolumesetup
-    ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
-fi
+    if [[ "${FS}" == "btrfs" ]]; then
+        mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
+        mkfs.btrfs -f "${partition3}"
+        mount -t btrfs "${partition3}" /mnt
+        subvolumesetup
+    elif [[ "${FS}" == "ext4" ]]; then
+        mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
+        mkfs.ext4 "${partition3}"
+        mount -t ext4 "${partition3}" /mnt
+    elif [[ "${FS}" == "luks" ]]; then
+        mkfs.fat -F32 "${partition2}"
+        echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
+        echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
+        mkfs.btrfs "${partition3}"
+        mount -t btrfs "${partition3}" /mnt
+        subvolumesetup
+        ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
+    fi
 
-BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
+    BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
 
-sync
-if ! mountpoint -q /mnt; then
-    echo -e "${BRed}ERROR: Failed to mount ${partition3} to /mnt. Exiting.${Color_Off}"
-    exit 1
-fi
-mkdir -p /mnt/boot
-mount -U "${BOOT_UUID}" /mnt/boot/
-
-if ! grep -qs '/mnt' /proc/mounts; then
-    echo -e "${BRed}ERROR: Drive is not mounted. Rebooting in 3 seconds...${Color_Off}" && sleep 1
-    echo -e "${BRed}Rebooting in 2 seconds...${Color_Off}" && sleep 1
-    echo -e "${BRed}Rebooting in 1 second...${Color_Off}" && sleep 1
-    reboot now
-fi
-
-echo -e "${BGreen}Installing Arch Linux on Main Drive...${Color_Off}"
-if [[ ! -d "/sys/firmware/efi" ]]; then
-    pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
-else
-    pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr --noconfirm --needed
-fi
-echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
-cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
-
-genfstab -U /mnt >> /mnt/etc/fstab
-echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
-cat /mnt/etc/fstab
-
-echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
-if [[ ! -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --boot-directory=/mnt/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+    sync
+    if ! mountpoint -q /mnt; then
+        echo -e "${BRed}ERROR: Failed to mount ${partition3} to /mnt. Exiting.${Color_Off}"
         exit 1
     fi
-fi
+    mkdir -p /mnt/boot
+    mount -U "${BOOT_UUID}" /mnt/boot/
 
-echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
-TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-if [[ $TOTAL_MEM -lt 8000000 ]]; then
-    echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
-    mkdir -p /mnt/opt/swap
-    if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
-        chattr +C /mnt/opt/swap
+    if ! grep -qs '/mnt' /proc/mounts; then
+        echo -e "${BRed}ERROR: Drive is not mounted. Rebooting in 3 seconds...${Color_Off}" && sleep 1
+        echo -e "${BRed}Rebooting in 2 seconds...${Color_Off}" && sleep 1
+        echo -e "${BRed}Rebooting in 1 second...${Color_Off}" && sleep 1
+        reboot now
     fi
-    dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
-    chmod 600 /mnt/opt/swap/swapfile
-    chown root /mnt/opt/swap/swapfile
-    mkswap /mnt/opt/swap/swapfile
-    swapon /mnt/opt/swap/swapfile
-    echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
-fi
 
-# Chroot into the new system to continue configuration
-arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
+    echo -e "${BGreen}Installing Arch Linux on Main Drive...${Color_Off}"
+    if [[ ! -d "/sys/firmware/efi" ]]; then
+        pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
+    else
+        pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr --noconfirm --needed
+    fi
+    echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
+    cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
 
-echo "root:${PASSWORD}" | chpasswd
+    genfstab -U /mnt >> /mnt/etc/fstab
+    echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
+    cat /mnt/etc/fstab
 
-echo -ne "
+    echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
+    if [[ ! -d "/sys/firmware/efi" ]]; then
+        echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+        grub-install --boot-directory=/mnt/boot "${DISK}"
+        if [ $? -ne 0 ]; then
+            echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+            exit 1
+        fi
+    fi
+
+    echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
+    TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+    if [[ $TOTAL_MEM -lt 8000000 ]]; then
+        echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
+        mkdir -p /mnt/opt/swap
+        if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
+            chattr +C /mnt/opt/swap
+        fi
+        dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
+        chmod 600 /mnt/opt/swap/swapfile
+        chown root /mnt/opt/swap/swapfile
+        mkswap /mnt/opt/swap/swapfile
+        swapon /mnt/opt/swap/swapfile
+        echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
+    fi
+
+    arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' USER_PACKAGES='${USER_PACKAGES}' /bin/bash" <<EOF
+
+    echo "root:${PASSWORD}" | chpasswd
+
+    echo -ne "
 ${BGreen}-------------------------------------------------------------------------
                         Network Setup
 -------------------------------------------------------------------------${Color_Off}
@@ -562,30 +524,42 @@ else
     echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
 fi
 
-echo -ne "
+    # ==============================================================================
+    #                 User Package Installation Section
+    # ==============================================================================
+    if [[ -n "${USER_PACKAGES}" ]]; then
+        echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-    Adding User & fast-hyprland scipt
+    Installing user-defined packages
 -------------------------------------------------------------------------${Color_Off}
 "
-groupadd libvirt
-useradd -m -G wheel,libvirt -s /bin/bash $USERNAME
-echo -e "${BGreen}User '$USERNAME' created, added to 'wheel' and 'libvirt' groups.${Color_Off}"
-echo "$USERNAME:$PASSWORD" | chpasswd
-echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
-echo $NAME_OF_MACHINE > /etc/hostname
-echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
+        pacman -S --noconfirm --needed ${USER_PACKAGES}
+    fi
 
-echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
-wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
-echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
-cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
+    echo -ne "
+${BGreen}-------------------------------------------------------------------------
+    Adding User & fast-hyprland scipt
+-------------------------------------------------------------------------${Color_Off}
+"
+    groupadd libvirt
+    useradd -m -G wheel,libvirt -s /bin/bash $USERNAME
+    echo -e "${BGreen}User '$USERNAME' created, added to 'wheel' and 'libvirt' groups.${Color_Off}"
+    echo "$USERNAME:$PASSWORD" | chpasswd
+    echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
+    echo $NAME_OF_MACHINE > /etc/hostname
+    echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
 
-if [[ ${FS} == "luks" ]]; then
-    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-    mkinitcpio -p linux-lts
-fi
+    echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
+    wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
+    echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
+    cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
 
-echo -ne "
+    if [[ ${FS} == "luks" ]]; then
+        sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+        mkinitcpio -p linux-lts
+    fi
+
+    echo -ne "
 ${BCyan}-------------------------------------------------------------------------
      █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
     ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
@@ -600,14 +574,14 @@ ${BCyan}------------------------------------------------------------------------
 ${BGreen}Final Setup and Configurations
 GRUB EFI Bootloader Install & Check${Color_Off}"
 
-if [[ -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --efi-directory=/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
-        exit 1
+    if [[ -d "/sys/firmware/efi" ]]; then
+        echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+        grub-install --efi-directory=/boot "${DISK}"
+        if [ $? -ne 0 ]; then
+            echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+            exit 1
+        fi
     fi
-fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
@@ -659,9 +633,39 @@ ${BGreen}-----------------------------------------------------------------------
                           Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
-# Reverting temporary sudoers changes for security
-sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
-sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+    # Reverting temporary sudoers changes for security
+    sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+    sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
+    sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-EOF
+    EOF
+}
+
+# Run initial checks before starting
+background_checks
+clear
+userinfo
+clear
+diskpart
+clear
+filesystem
+clear
+timezone
+clear
+keymap
+clear
+user_packages
+
+# Installation Confirmation before starting the background process
+if (whiptail --title "Installation Confirmation" --yesno "All user input is collected. The installation will now run in the background. Are you ready to proceed? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
+    clear
+    logo
+    echo -e "${BYellow}The Arch Linux installation is now running in the background. Grab your coffee and chill!${Color_Off}"
+    echo -e "${BYellow}You can check the progress in the 'archsetup.txt' log file.${Color_Off}"
+    echo -e "${BYellow}This script will automatically reboot the system once it is finished.${Color_Off}"
+    main_installation_process
+else
+    echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
+    exit 1
+fi
+
