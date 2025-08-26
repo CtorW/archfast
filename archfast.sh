@@ -6,76 +6,24 @@
 
 # Check if terminal supports colors and use tput, otherwise use raw codes
 if tput setaf 1 >/dev/null 2>&1; then
-    # Standard Colors
-    Color_Off="$(tput sgr0)"
-    Black="$(tput setaf 0)"
-    Red="$(tput setaf 1)"
-    Green="$(tput setaf 2)"
-    Yellow="$(tput setaf 3)"
-    Blue="$(tput setaf 4)"
-    Purple="$(tput setaf 5)"
-    Cyan="$(tput setaf 6)"
-    White="$(tput setaf 7)"
-
-    # Bold Colors
-    BBlack="$(tput bold; tput setaf 0)"
-    BRed="$(tput bold; tput setaf 1)"
-    BGreen="$(tput bold; tput setaf 2)"
-    BYellow="$(tput bold; tput setaf 3)"
-    BBlue="$(tput bold; tput setaf 4)"
-    BPurple="$(tput bold; tput setaf 5)"
-    BCyan="$(tput bold; tput setaf 6)"
-    BWhite="$(tput bold; tput setaf 7)"
-
-    # Bright Bold Colors
-    BIBlack="$(tput bold; tput setaf 8)"
-    BIRed="$(tput bold; tput setaf 9)"
-    BIGreen="$(tput bold; tput setaf 10)"
-    BIYellow="$(tput bold; tput setaf 11)"
-    BIBlue="$(tput bold; tput setaf 12)"
-    BIPurple="$(tput bold; tput setaf 13)"
-    BICyan="$(tput bold; tput setaf 14)"
-    BIWhite="$(tput bold; tput setaf 15)"
+    Color_Off="$(tput sgr0)"; Red="$(tput setaf 1)"; Green="$(tput setaf 2)"; Yellow="$(tput setaf 3)"; Blue="$(tput setaf 4)"; Purple="$(tput setaf 5)"; Cyan="$(tput setaf 6)"; White="$(tput setaf 7)"; BRed="$(tput bold; tput setaf 1)"; BGreen="$(tput bold; tput setaf 2)"; BYellow="$(tput bold; tput setaf 3)"; BBlue="$(tput bold; tput setaf 4)"; BPurple="$(tput bold; tput setaf 5)"; BCyan="$(tput bold; tput setaf 6)"; BWhite="$(tput bold; tput setaf 7)"; BIBlack="$(tput bold; tput setaf 8)"; BIRed="$(tput bold; tput setaf 9)"; BIGreen="$(tput bold; tput setaf 10)"; BIYellow="$(tput bold; tput setaf 11)"; BIBlue="$(tput bold; tput setaf 12)"; BIPurple="$(tput bold; tput setaf 13)"; BICyan="$(tput bold; tput setaf 14)"; BIWhite="$(tput bold; tput setaf 15)";
 else
-    # Fallback to hardcoded ANSI codes if tput is not available or supported
-    Color_Off="\033[0m"
-    Black="\033[0;30m"
-    Red="\033[0;31m"
-    Green="\033[0;32m"
-    Yellow="\033[0;33m"
-    Blue="\033[0;34m"
-    Purple="\033[0;35m"
-    Cyan="\033[0;36m"
-    White="\033[0;37m"
-
-    BBlack="\033[1;30m"
-    BRed="\033[1;31m"
-    BGreen="\033[1;32m"
-    BYellow="\033[1;33m"
-    BBlue="\033[1;34m"
-    BPurple="\033[1;35m"
-    BCyan="\033[1;36m"
-    BWhite="\033[1;37m"
-    
-    BIBlack="\033[1;90m"
-    BIRed="\033[1;91m"
-    BIGreen="\033[1;92m"
-    BIYellow="\033[1;93m"
-    BIBlue="\033[1;94m"
-    BIPurple="\033[1;95m"
-    BICyan="\033[1;96m"
-    BIWhite="\033[1;97m"
+    Color_Off="\033[0m"; Red="\033[0;31m"; Green="\033[0;32m"; Yellow="\033[0;33m"; Blue="\033[0;34m"; Purple="\033[0;35m"; Cyan="\033[0;36m"; White="\033[0;37m"; BRed="\033[1;31m"; BGreen="\033[1;32m"; BYellow="\033[1;33m"; BBlue="\033[1;34m"; BPurple="\033[1;35m"; BCyan="\033[1;36m"; BWhite="\033[1;37m"; BIBlack="\033[1;90m"; BIRed="\033[1;91m"; BIGreen="\033[1;92m"; BIYellow="\033[1;93m"; BIBlue="\033[1;94m"; BIPurple="\033[1;95m"; BICyan="\033[1;96m"; BIWhite="\033[1;97m";
 fi
 
-# Redirect all output to a log file
-exec > >(tee -i archsetup.txt)
-exec 2>&1
+# ==============================================================================
+#                        LOGGING & TTY SETUP
+# ==============================================================================
+
+exec 3>&1 4>&2
+
+exec > >(tee -i archsetup.txt) 2>&1
+
 
 # ==============================================================================
 #                          Initial System Checks
 # ==============================================================================
 logo() {
- clear
  echo -en "
 ${BCyan}-------------------------------------------------------------------------
      █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
@@ -87,52 +35,15 @@ ${BCyan}------------------------------------------------------------------------
 -------------------------------------------------------------------------
 ${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
-"
+" >&3
 }
 
-if [ ! -f /usr/bin/pacstrap ]; then
-    echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
-    exit 1
-fi
-
-root_check() {
-    if [[ "$(id -u)" != "0" ]]; then
-        echo -e "${BRed}ERROR: This script must be run under the 'root' user!${Color_Off}\n"
-        exit 1
-    fi
-}
-
-docker_check() {
-    if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
-        exit 1
-    elif [[ -f /.dockerenv ]]; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
-        exit 1
-    fi
-}
-
-arch_check() {
-    if [[ ! -e /etc/arch-release ]]; then
-        echo -e "${BRed}ERROR: This script must be run in Arch Linux! Exiting.${Color_Off}"
-        exit 1
-    fi
-}
-
-pacman_check() {
-    if [[ -f /var/lib/pacman/db.lck ]]; then
-        echo -e "${BRed}ERROR: Pacman is blocked.${Color_Off}"
-        echo -e "${BRed}If you are sure no pacman process is running, remove /var/lib/pacman/db.lck and try again.${Color_Off}\n"
-        exit 1
-    fi
-}
-
-background_checks() {
-    root_check
-    arch_check
-    pacman_check
-    docker_check
-}
+if [ ! -f /usr/bin/pacstrap ]; then echo -e "${BRed}ERROR: Must be run from Arch ISO.${Color_Off}"; exit 1; fi
+root_check() { if [[ "$(id -u)" != "0" ]]; then echo -e "${BRed}ERROR: Must be run as root.${Color_Off}\n"; exit 1; fi; }
+docker_check() { if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r || [[ -f /.dockerenv ]]; then echo -e "${BRed}ERROR: Docker not supported.${Color_Off}\n"; exit 1; fi; }
+arch_check() { if [[ ! -e /etc/arch-release ]]; then echo -e "${BRed}ERROR: Must be run in Arch Linux.${Color_Off}"; exit 1; fi; }
+pacman_check() { if [[ -f /var/lib/pacman/db.lck ]]; then echo -e "${BRed}ERROR: Pacman is locked.${Color_Off}"; exit 1; fi; }
+background_checks() { root_check; arch_check; pacman_check; docker_check; }
 
 # ==============================================================================
 #                Python Curses TUI Script Generation
@@ -179,15 +90,15 @@ def get_password(stdscr, y, x, prompt_string):
     while True:
         try:
             ch = stdscr.getch()
-            if ch == 10:  # Enter key
+            if ch == 10:
                 break
-            elif ch in [curses.KEY_BACKSPACE, 127, 8]: # Backspace
+            elif ch in [curses.KEY_BACKSPACE, 127, 8]:
                 if len(password) > 0:
                     h, w = stdscr.getyx()
                     stdscr.move(h, w - 1)
                     stdscr.delch()
                     password = password[:-1]
-            elif 32 <= ch <= 126: # Regular character
+            elif 32 <= ch <= 126:
                 password += bytes([ch])
                 stdscr.addch('*')
         except KeyboardInterrupt:
@@ -232,7 +143,6 @@ def display_menu(stdscr, title, options):
             return options[selected_idx]
 
 def userinfo(stdscr):
-    """Gathers username, password, and hostname."""
     setup_colors()
     username = ""
     password = ""
@@ -260,7 +170,6 @@ def userinfo(stdscr):
     print(f"{username}\n{password}\n{hostname}")
 
 def diskpart(stdscr):
-    """Allows the user to select a disk."""
     setup_colors()
     disk_list_cmd = "lsblk -o KNAME,SIZE,MODEL -d | grep -E 'sd|hd|vd|nvme|mmcblk'"
     disks_raw = subprocess.check_output(disk_list_cmd, shell=True).decode('utf-8').strip().split('\n')
@@ -277,7 +186,6 @@ def diskpart(stdscr):
     print(f"/dev/{selected_disk}\n{mount_options}")
 
 def filesystem(stdscr):
-    """Allows the user to select a filesystem."""
     setup_colors()
     fs_options = ["btrfs", "ext4", "luks"]
     fs_choice = display_menu(stdscr, "Please select a filesystem:", fs_options)
@@ -299,7 +207,6 @@ def filesystem(stdscr):
     print(f"{fs_choice}\n{luks_password}")
 
 def timezone(stdscr):
-    """Allows the user to set the timezone."""
     setup_colors()
     try:
         detected_timezone = subprocess.check_output("curl --fail https://ipapi.co/timezone", shell=True).decode('utf-8').strip()
@@ -316,7 +223,6 @@ def timezone(stdscr):
     print(new_timezone)
 
 def keymap(stdscr):
-    """Allows the user to select a keyboard layout."""
     setup_colors()
     common_layouts = ["us", "de", "fr", "es", "More..."]
     keymap_choice = display_menu(stdscr, "Select a common keyboard layout:", common_layouts)
@@ -329,7 +235,6 @@ def keymap(stdscr):
     print(keymap_choice)
 
 def confirm_installation(stdscr):
-    """Asks the user to confirm the installation."""
     setup_colors()
     answer = display_menu(stdscr, "Are you ready to begin the installation?\nAll data on the selected disk will be erased.", ["Yes", "No"])
     if answer == "Yes":
@@ -338,34 +243,23 @@ def confirm_installation(stdscr):
         print("no")
 
 def main(stdscr):
-    """Main function to dispatch to the correct TUI screen."""
     if len(sys.argv) > 1:
         screen = sys.argv[1]
-        if screen == 'userinfo':
-            userinfo(stdscr)
-        elif screen == 'diskpart':
-            diskpart(stdscr)
-        elif screen == 'filesystem':
-            filesystem(stdscr)
-        elif screen == 'timezone':
-            timezone(stdscr)
-        elif screen == 'keymap':
-            keymap(stdscr)
-        elif screen == 'confirm':
-            confirm_installation(stdscr)
+        if screen == 'userinfo': userinfo(stdscr)
+        elif screen == 'diskpart': diskpart(stdscr)
+        elif screen == 'filesystem': filesystem(stdscr)
+        elif screen == 'timezone': timezone(stdscr)
+        elif screen == 'keymap': keymap(stdscr)
+        elif screen == 'confirm': confirm_installation(stdscr)
 
 if __name__ == '__main__':
     try:
         curses.wrapper(main)
     except KeyboardInterrupt:
-        print("Installation canceled by user.")
         sys.exit(1)
     except Exception:
-        # If curses fails for any reason, exit gracefully.
         sys.exit(1)
-
 EOF
-
     chmod +x tui.py
 }
 
@@ -375,13 +269,11 @@ EOF
 userinfo () {
     echo -e "${BGreen}Checking for python...${Color_Off}"
     pacman -S --noconfirm --needed python
-    
     create_tui_script
 
-    USER_DATA=$(./tui.py userinfo)
+    USER_DATA=$(./tui.py userinfo >&3 2>&4)
     if [ $? -ne 0 ]; then
-        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
-        exit 1
+        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"; exit 1;
     fi
 
     USERNAME=$(echo "$USER_DATA" | sed -n 1p)
@@ -389,60 +281,38 @@ userinfo () {
     NAME_OF_MACHINE=$(echo "$USER_DATA" | sed -n 3p)
 
     if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ] || [ -z "$NAME_OF_MACHINE" ]; then
-        echo -e "${BRed}User canceled or provided empty input. Exiting.${Color_Off}"
-        exit 1
+        echo -e "${BRed}User provided empty input. Exiting.${Color_Off}"; exit 1;
     fi
     export USERNAME PASSWORD NAME_OF_MACHINE
 }
 
 diskpart () {
-    DISK_DATA=$(./tui.py diskpart)
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
-        exit 1
-    fi
+    DISK_DATA=$(./tui.py diskpart >&3 2>&4)
+    if [ $? -ne 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     DISK=$(echo "$DISK_DATA" | sed -n 1p)
     MOUNT_OPTIONS=$(echo "$DISK_DATA" | sed -n 2p)
-
-    if [ -z "$DISK" ]; then
-        echo -e "${BRed}No disk selected. Exiting.${Color_Off}"
-        exit 1
-    fi
+    if [ -z "$DISK" ]; then echo -e "${BRed}No disk selected. Exiting.${Color_Off}"; exit 1; fi
     export DISK MOUNT_OPTIONS
 }
 
 filesystem () {
-    FS_DATA=$(./tui.py filesystem)
-     if [ $? -ne 0 ]; then
-        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
-        exit 1
-    fi
+    FS_DATA=$(./tui.py filesystem >&3 2>&4)
+    if [ $? -ne 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     FS=$(echo "$FS_DATA" | sed -n 1p)
     LUKS_PASSWORD=$(echo "$FS_DATA" | sed -n 2p)
-
-    if [ -z "$FS" ]; then
-        echo -e "${BRed}No filesystem selected. Exiting.${Color_Off}"
-        exit 1
-    fi
+    if [ -z "$FS" ]; then echo -e "${BRed}No filesystem selected. Exiting.${Color_Off}"; exit 1; fi
     export FS LUKS_PASSWORD
 }
 
 timezone () {
-    TIMEZONE=$(./tui.py timezone)
-    if [ $? -ne 0 ] || [ -z "$TIMEZONE" ]; then
-        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
-        exit 1
-    fi
+    TIMEZONE=$(./tui.py timezone >&3 2>&4)
+    if [ $? -ne 0 ] || [ -z "$TIMEZONE" ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     export TIMEZONE
 }
 
 keymap () {
-    KEYMAP=$(./tui.py keymap)
-    if [ $? -ne 0 ] || [ -z "$KEYMAP" ]; then
-        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
-        exit 1
-    fi
-    echo -e "${BGreen}Keyboard layout set to: ${KEYMAP}${Color_Off}"
+    KEYMAP=$(./tui.py keymap >&3 2>&4)
+    if [ $? -ne 0 ] || [ -z "$KEYMAP" ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     export KEYMAP
 }
 
@@ -459,7 +329,10 @@ timezone
 keymap
 clear
 
-if [ "$(./tui.py confirm)" == "yes" ]; then
+
+clear >&3
+
+if [ "$(./tui.py confirm >&3 2>&4)" == "yes" ]; then
      echo -en "
 ${BCyan}-------------------------------------------------------------------------
 ██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
@@ -815,6 +688,8 @@ sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 EOF
 
 rm -f tui.py
+
+exec 1>&3 2>&4
 
 echo -e "${BIGreen}Installation is complete! You can now reboot your system.${Color_Off}"
 echo -e "${BIYellow}After rebooting, log in as '$USERNAME' to continue with the fast-hyprland setup by running ./fast-hyprland.sh${Color_Off}"
