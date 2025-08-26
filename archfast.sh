@@ -86,39 +86,33 @@ ${BCyan}------------------------------------------------------------------------
 "
 }
 
-if [ ! -f /usr/bin/pacstrap ]; then
-    echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
-    exit 1
-fi
-
 root_check() {
     if [[ "$(id -u)" != "0" ]]; then
-        echo -e "${BRed}ERROR: This script must be run under the 'root' user!${Color_Off}\n"
+        whiptail --title "ERROR" --msgbox "This script must be run under the 'root' user!" 8 78
         exit 1
     fi
 }
 
 docker_check() {
     if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
+        whiptail --title "ERROR" --msgbox "Docker container is not supported (at the moment)." 8 78
         exit 1
     elif [[ -f /.dockerenv ]]; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
+        whiptail --title "ERROR" --msgbox "Docker container is not supported (at the moment)." 8 78
         exit 1
     fi
 }
 
 arch_check() {
     if [[ ! -e /etc/arch-release ]]; then
-        echo -e "${BRed}ERROR: This script must be run in Arch Linux! Exiting.${Color_Off}"
+        whiptail --title "ERROR" --msgbox "This script must be run in Arch Linux!" 8 78
         exit 1
     fi
 }
 
 pacman_check() {
     if [[ -f /var/lib/pacman/db.lck ]]; then
-        echo -e "${BRed}ERROR: Pacman is blocked.${Color_Off}"
-        echo -e "${BRed}If you are sure no pacman process is running, remove /var/lib/pacman/db.lck and try again.${Color_Off}\n"
+        whiptail --title "ERROR" --msgbox "Pacman is blocked.\nIf you are sure no pacman process is running, remove /var/lib/pacman/db.lck and try again." 8 78
         exit 1
     fi
 }
@@ -131,154 +125,77 @@ background_checks() {
 }
 
 # ==============================================================================
-#             Interactive Prompts (using Whiptail TUI)
+#                 Interactive User Prompts with `whiptail`
 # ==============================================================================
-userinfo () {
-    # Install whiptail if it's not already installed
-    echo -e "${BGreen}Checking for whiptail...${Color_Off}"
-    pacman -S --noconfirm --needed whiptail
-    
-    # Prompt for username
-    USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
-    export USERNAME
 
-    # Prompt for password
-    local password_match=false
-    while [ "$password_match" = false ]; do
-        PASSWORD=$(whiptail --title "Password for $USERNAME" --passwordbox "Enter password:" 10 60 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-            exit 1
-        fi
-        
-        PASSWORD2=$(whiptail --title "Password for $USERNAME" --passwordbox "Re-enter password:" 10 60 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-            exit 1
-        fi
-
-        if [ "$PASSWORD" == "$PASSWORD2" ]; then
-            password_match=true
-        else
-            whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
-        fi
-    done
-    export PASSWORD
-    
-    # Prompt for hostname
-    NAME_OF_MACHINE=$(whiptail --title "Hostname Setup" --inputbox "Please name your machine (hostname):" 10 60 myarch 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
-    export NAME_OF_MACHINE
+userinfo() {
+    whiptail --title "User Information" --msgbox "Please enter the username, password, and hostname for your new system." 10 60
+    USERNAME=$(whiptail --title "Username" --inputbox "Enter a username for the new user:" 10 60 "$USERNAME" 3>&1 1>&2 2>&3)
+    [ $? -ne 0 ] && exit 1
+    PASSWORD=$(whiptail --title "Password" --passwordbox "Enter a password for the new user and root:" 10 60 3>&1 1>&2 2>&3)
+    [ $? -ne 0 ] && exit 1
+    NAME_OF_MACHINE=$(whiptail --title "Hostname" --inputbox "Enter the hostname for your new machine:" 10 60 "$NAME_OF_MACHINE" 3>&1 1>&2 2>&3)
+    [ $? -ne 0 ] && exit 1
 }
 
-diskpart () {
-    declare -a disk_list=()
-    while read -r line; do
-        disk_name=$(echo "$line" | awk '{print $1}')
-        disk_size=$(echo "$line" | awk '{print $2}')
-        disk_model=$(echo "$line" | awk '{print $3}')
-        disk_list+=("${disk_name}" "${disk_size} ${disk_model}")
-    done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
+diskpart() {
+    DEVICES=$(lsblk -d -e 7,11 -o NAME,SIZE,MODEL | grep -v 'loop' | sed 's/  */ /g' | cut -d' ' -f1,2 | sed 's/$/\t/g')
+    CHOICE=$(whiptail --title "Disk Partitioning" --menu "Choose a disk to partition (WARNING: All data will be erased):" 20 78 12 --backtitle "Arch Linux Installer" --cancel-button "Exit" --ok-button "Select" \
+    $(lsblk -d -e 7,11 -o NAME,SIZE,MODEL | grep -v 'loop' | sed 's/  */ /g' | while read LINE; do
+        NAME=$(echo $LINE | awk '{print $1}')
+        SIZE=$(echo $LINE | awk '{print $2}')
+        MODEL=$(echo $LINE | awk '{$1=$2=""; print}')
+        echo "$NAME \"$SIZE $MODEL\""
+    done) 3>&1 1>&2 2>&3)
+    [ $? -ne 0 ] && exit 1
+    DISK="/dev/${CHOICE}"
 
-    DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
-    export DISK="/dev/${DISK}"
-
-    if (whiptail --title "SSD?" --yesno "Is this an SSD?" 10 60 3>&1 1>&2 2>&3); then
-        export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
-    else
-        export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
-    fi
+    whiptail --title "Warning" --yesno "Are you sure you want to format and partition $DISK? This will ERASE ALL DATA!" 10 60
+    [ $? -ne 0 ] && exit 1
 }
 
-filesystem () {
-    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:  (use space for selection)" 15 60 3 \
-    "btrfs" "Btrfs with zstd compression and snapshots" OFF \
-    "ext4" "Ext4 - a simple and reliable choice" OFF \
-    "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
-    export FS=${FS_CHOICE}
-    
-    if [[ "${FS}" == "luks" ]]; then
-        LUKS_PASSWORD=""
-        LUKS_PASSWORD2="not_matching"
-        while [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; do
-            LUKS_PASSWORD=$(whiptail --title "LUKS Encryption" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
-            LUKS_PASSWORD2=$(whiptail --title "LUKS Encryption" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
-            if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; then
-                whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
-            fi
-        done
-        export LUKS_PASSWORD
-    fi
-}
-
-timezone () {
-    TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
-    if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
-        # If curl is successful and returns a value, ask for confirmation.
-        if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
-            export TIMEZONE=$TIME_ZONE
+filesystem() {
+    whiptail --title "Filesystem Selection" --yesno "Do you want to use Btrfs filesystem? (Yes: Btrfs | No: Ext4)" 10 60
+    if [ $? -eq 0 ]; then
+        FS="btrfs"
+        whiptail --title "Btrfs Subvolumes" --msgbox "The installer will create two subvolumes: @ and @home" 10 60
+        whiptail --title "SSD/HDD" --yesno "Is your disk an SSD? (Yes for better performance)" 10 60
+        if [ $? -eq 0 ]; then
+            IS_SSD="true"
         else
             # If the user says no, or if curl failed, prompt for manual input.
-            NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
-            export TIMEZONE=$NEW_TIMEZONE
+            IS_SSD="false"
+        fi
+        
+        whiptail --title "Encryption" --yesno "Do you want to encrypt your root partition with LUKS?" 10 60
+        if [ $? -eq 0 ]; then
+            FS="luks"
+            LUKS_PASSWORD=$(whiptail --title "LUKS Password" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
+            [ $? -ne 0 ] && exit 1
+            if [[ -z "$LUKS_PASSWORD" ]]; then
+                whiptail --title "ERROR" --msgbox "Password cannot be empty." 10 60
+                exit 1
+            fi
         fi
     else
-        echo -e "${BYellow}Warning: Timezone auto-detection failed. Proceeding with manual prompt.${Color_Off}"
-        NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
-        export TIMEZONE=$NEW_TIMEZONE
+        FS="ext4"
+        whiptail --title "Filesystem Selection" --msgbox "You have selected Ext4." 10 60
     fi
 }
 
-keymap () {
-    local keymap_choice
-
-    keymap_choice=$(whiptail --title "Keyboard Layout Selection" --menu "Select a common keyboard layout:" 15 60 7 \
-    "us" "United States" \
-    "de" "Germany" \
-    "fr" "France" \
-    "es" "Spain" \
-    "More..." "Browse all layouts" 3>&1 1>&2 2>&3)
-    
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
-
-    if [ "$keymap_choice" == "More..." ]; then
-        declare -a keymap_list=()
-        while read -r line; do
-            keymap_list+=("$(echo "$line" | cut -d' ' -f1)" "$(echo "$line" | cut -d' ' -f2-)")
-        done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
-
-        keymap_choice=$(whiptail --title "All Keyboard Layouts" --menu "Select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-            exit 1
-        fi
-    fi
-
-    echo -e "${BGreen}Keyboard layout set to: ${keymap_choice}${Color_Off}"
-    export KEYMAP="${keymap_choice}"
+timezone() {
+    TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your timezone (e.g., 'America/Los_Angeles' or 'Europe/London'):" 10 60 3>&1 1>&2 2>&3)
+    [ $? -ne 0 ] && exit 1
 }
 
-user_packages () {
-    USER_PACKAGES=$(whiptail --title "Optional Packages" --inputbox "Enter a space-separated list of packages to install (e.g., gnome firefox htop). Press Enter to skip:" 10 60 "" 3>&1 1>&2 2>&3)
-    export USER_PACKAGES
+keymap() {
+    KEYMAP=$(whiptail --title "Keyboard Layout" --inputbox "Enter your keyboard layout (e.g., 'us', 'de', 'fr'):" 10 60 3>&1 1>&2 2>&3)
+    [ $? -ne 0 ] && exit 1
+}
+
+user_packages() {
+    USER_PACKAGES=$(whiptail --title "Optional Packages" --inputbox "Enter any additional packages you want to install (space-separated):" 10 60 3>&1 1>&2 2>&3)
+    [ $? -ne 0 ] && exit 1
 }
 
 # ==============================================================================
@@ -349,6 +266,12 @@ main_installation_process() {
     else
         partition2=${DISK}2
         partition3=${DISK}3
+    fi
+
+    if [[ "${IS_SSD}" == "true" ]]; then
+        MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+    else
+        MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
     fi
 
     if [[ "${FS}" == "btrfs" ]]; then
@@ -642,25 +565,15 @@ background_checks
 clear
 logo
 userinfo
-clear
 diskpart
-clear
 filesystem
-clear
 timezone
-clear
 keymap
-clear
 user_packages
 
-# Installation Confirmation before starting the background process
-if (whiptail --title "Installation Confirmation" --yesno "All user input is collected. The installation will now run in the background. Are you ready to proceed? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
-    clear
-    logo
-    main_installation_process > archsetup.txt 2>&1 &
-    
-    whiptail --title "Installation in Progress" --msgbox "The Arch Linux installation is now running in the background. Grab your coffee and chill!\n\nYou can check the progress in the 'archsetup.txt' log file.\n\nThis script will automatically reboot the system once it is finished." 15 70
-else
-    echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
-    exit 1
-fi
+echo -e "${BYellow}Starting installation... This will take a while. The output will be logged to 'archsetup.txt'.${Color_Off}"
+main_installation_process > archsetup.txt 2>&1
+
+echo -e "\n${BGreen}Installation process finished! Review the log file 'archsetup.txt' for details.${Color_Off}"
+echo -e "\n${BCyan}Here is the last part of the log file for a quick summary:${Color_Off}\n"
+cat archsetup.txt | tail -n 20
