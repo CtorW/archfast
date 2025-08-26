@@ -4,9 +4,7 @@
 #           Color Definitions for a More Beautiful Terminal Experience
 # ==============================================================================
 
-# Check if terminal supports colors and use tput, otherwise use raw codes
 if tput setaf 1 >/dev/null 2>&1; then
-    # Standard Colors
     Color_Off="$(tput sgr0)"
     Black="$(tput setaf 0)"
     Red="$(tput setaf 1)"
@@ -17,7 +15,6 @@ if tput setaf 1 >/dev/null 2>&1; then
     Cyan="$(tput setaf 6)"
     White="$(tput setaf 7)"
 
-    # Bold Colors
     BBlack="$(tput bold; tput setaf 0)"
     BRed="$(tput bold; tput setaf 1)"
     BGreen="$(tput bold; tput setaf 2)"
@@ -27,7 +24,6 @@ if tput setaf 1 >/dev/null 2>&1; then
     BCyan="$(tput bold; tput setaf 6)"
     BWhite="$(tput bold; tput setaf 7)"
 
-    # Bright Bold Colors
     BIBlack="$(tput bold; tput setaf 8)"
     BIRed="$(tput bold; tput setaf 9)"
     BIGreen="$(tput bold; tput setaf 10)"
@@ -37,7 +33,6 @@ if tput setaf 1 >/dev/null 2>&1; then
     BICyan="$(tput bold; tput setaf 14)"
     BIWhite="$(tput bold; tput setaf 15)"
 else
-    # Fallback to hardcoded ANSI codes if tput is not available or supported
     Color_Off="\033[0m"
     Black="\033[0;30m"
     Red="\033[0;31m"
@@ -67,7 +62,6 @@ else
     BIWhite="\033[1;97m"
 fi
 
-# Redirect all output to a log file
 exec > >(tee -i archsetup.txt)
 exec 2>&1
 
@@ -138,47 +132,33 @@ background_checks() {
 #                          Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
-    # Install whiptail if it's not already installed
     echo -e "${BGreen}Checking for whiptail...${Color_Off}"
     pacman -S --noconfirm --needed whiptail
     
-    # Prompt for username
-    USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
+    USERNAME=$(whiptail --title "User Account Setup" --inputbox \
+    "Please enter your desired username.\n\n(Use lowercase letters, no spaces. e.g., 'alex')" 10 60 archuser 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     export USERNAME
 
-    # Prompt for password
     local password_match=false
     while [ "$password_match" = false ]; do
-        PASSWORD=$(whiptail --title "Password for $USERNAME" --passwordbox "Enter password:" 10 60 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-            exit 1
-        fi
+        PASSWORD=$(whiptail --title "Set User Password" --passwordbox "Enter a password for user '$USERNAME':" 10 60 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
         
-        PASSWORD2=$(whiptail --title "Password for $USERNAME" --passwordbox "Re-enter password:" 10 60 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-            exit 1
-        fi
+        PASSWORD2=$(whiptail --title "Confirm User Password" --passwordbox "Please re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
 
         if [ "$PASSWORD" == "$PASSWORD2" ]; then
             password_match=true
         else
-            whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
+            whiptail --title "Password Mismatch" --msgbox "The passwords you entered do not match. Please try again." 10 60
         fi
     done
     export PASSWORD
     
-    # Prompt for hostname
-    NAME_OF_MACHINE=$(whiptail --title "Hostname Setup" --inputbox "Please name your machine (hostname):" 10 60 myarch 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
+    NAME_OF_MACHINE=$(whiptail --title "System Hostname" --inputbox \
+    "Please enter a hostname for this machine.\n\n(This is how it will appear on a network. e.g., 'arch-desktop')" 10 60 myarch 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     export NAME_OF_MACHINE
 }
 
@@ -188,17 +168,16 @@ diskpart () {
         disk_name=$(echo "$line" | awk '{print $1}')
         disk_size=$(echo "$line" | awk '{print $2}')
         disk_model=$(echo "$line" | awk '{print $3}')
-        disk_list+=("${disk_name}" "${disk_size} ${disk_model}")
+        disk_list+=("${disk_name}" "(${disk_size}) ${disk_model}")
     done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
 
-    DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
+    DISK=$(whiptail --title "Select Target Installation Disk" --menu \
+    "Please select the disk to install Arch Linux onto.\n\n[ DANGER ]: All data on the selected disk will be PERMANENTLY DELETED." 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     export DISK="/dev/${DISK}"
 
-    if (whiptail --title "SSD?" --yesno "Is this an SSD?" 10 60 3>&1 1>&2 2>&3); then
+    if (whiptail --title "Storage Optimization" --yesno \
+    "Is the selected disk an SSD?\n\n(Choosing 'Yes' will apply SSD-specific mount options for better performance and longevity.)" 10 60 3>&1 1>&2 2>&3); then
         export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
         export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
@@ -206,23 +185,25 @@ diskpart () {
 }
 
 filesystem () {
-    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:  (use space for selection)" 15 60 3 \
-    "btrfs" "Btrfs with zstd compression and snapshots" OFF \
-    "ext4" "Ext4 - a simple and reliable choice" OFF \
-    "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
+    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist \
+    "Choose the filesystem for your root partition.\n(Use arrow keys and SPACE to select)" 15 78 3 \
+    "btrfs" "Modern filesystem with compression & snapshots" ON \
+    "ext4"  "Traditional, stable, and widely-used" OFF \
+    "luks"  "Btrfs with full-disk encryption for security" OFF 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     export FS=${FS_CHOICE}
     
     if [[ "${FS}" == "luks" ]]; then
-        LUKS_PASSWORD=""
-        LUKS_PASSWORD2="not_matching"
-        while [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; do
-            LUKS_PASSWORD=$(whiptail --title "LUKS Encryption" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
-            LUKS_PASSWORD2=$(whiptail --title "LUKS Encryption" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
-            if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; then
+        local luks_match=false
+        while [ "$luks_match" = false ]; do
+            LUKS_PASSWORD=$(whiptail --title "Set Encryption Password" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+            LUKS_PASSWORD2=$(whiptail --title "Confirm Encryption Password" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+
+            if [[ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]]; then
+                luks_match=true
+            else
                 whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
             fi
         done
@@ -233,35 +214,33 @@ filesystem () {
 timezone () {
     TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
     if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
-        # If curl is successful and returns a value, ask for confirmation.
-        if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
+        if (whiptail --title "Timezone Confirmation" --yesno "Your timezone appears to be '${TIME_ZONE}'.\n\nIs this correct?" 10 60 3>&1 1>&2 2>&3); then
             export TIMEZONE=$TIME_ZONE
-        else
-            # If the user says no, or if curl failed, prompt for manual input.
-            NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
-            export TIMEZONE=$NEW_TIMEZONE
+            return
         fi
-    else
-        echo -e "${BYellow}Warning: Timezone auto-detection failed. Proceeding with manual prompt.${Color_Off}"
-        NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
-        export TIMEZONE=$NEW_TIMEZONE
     fi
+    
+    echo -e "${BYellow}Warning: Timezone auto-detection failed or was rejected. Please enter it manually.${Color_Off}"
+    NEW_TIMEZONE=$(whiptail --title "Manual Timezone Entry" --inputbox \
+    "Please enter your timezone.\n(Format: Region/City, e.g., America/New_York, Europe/Paris)" 10 60 "Etc/UTC" 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    export TIMEZONE=$NEW_TIMEZONE
 }
 
 keymap () {
     local keymap_choice
 
-    keymap_choice=$(whiptail --title "Keyboard Layout Selection" --menu "Select a common keyboard layout:" 15 60 7 \
-    "us" "United States" \
-    "de" "Germany" \
-    "fr" "France" \
+    keymap_choice=$(whiptail --title "Keyboard Layout" --menu \
+    "Select a common keyboard layout, or choose 'More...' for a full list." 15 60 7 \
+    "us" "United States (QWERTY)" \
+    "de" "Germany (QWERTZ)" \
+    "fr" "France (AZERTY)" \
+    "uk" "United Kingdom" \
     "es" "Spain" \
-    "More..." "Browse all layouts" 3>&1 1>&2 2>&3)
+    "br-abnt2" "Brazil" \
+    "More..." "Browse all available layouts" 3>&1 1>&2 2>&3)
     
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-        exit 1
-    fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
 
     if [ "$keymap_choice" == "More..." ]; then
         declare -a keymap_list=()
@@ -270,10 +249,7 @@ keymap () {
         done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
 
         keymap_choice=$(whiptail --title "All Keyboard Layouts" --menu "Select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
-            exit 1
-        fi
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
     fi
 
     echo -e "${BGreen}Keyboard layout set to: ${keymap_choice}${Color_Off}"
@@ -284,20 +260,34 @@ keymap () {
 #                             Main Installation Workflow
 # ==============================================================================
 
-# Run initial checks before starting
 background_checks
 clear
+logo
 userinfo
 clear
+logo
 diskpart
 clear
+logo
 filesystem
 clear
+logo
 timezone
 clear
+logo
 keymap
+clear
 
-if (whiptail --title "Installation Confirmation" --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
+SUMMARY="
+    User:           ${USERNAME}
+    Hostname:       ${NAME_OF_MACHINE}
+    Timezone:       ${TIMEZONE}
+    Keyboard:       ${KEYMAP}
+    Filesystem:     ${FS}
+"
+
+if (whiptail --title "FINAL CONFIRMATION" --yesno \
+"Please review your settings before proceeding.\n\n------------------------------------------------\n${SUMMARY}\n------------------------------------------------\n\nInstallation Target:  ${DISK}\n\n[  WARNING  ]\nContinuing will PARTITION and FORMAT the disk, permanently ERASING ALL DATA.\n\nAre you absolutely sure you want to begin the installation?" 22 78 3>&1 1>&2 2>&3); then
      echo -en "
 ${BCyan}-------------------------------------------------------------------------
 ██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
@@ -467,7 +457,6 @@ if [[ $TOTAL_MEM -lt 8000000 ]]; then
     echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
 fi
 
-# Chroot into the new system to continue configuration
 arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
 
 echo "root:${PASSWORD}" | chpasswd
@@ -659,7 +648,6 @@ ${BGreen}-----------------------------------------------------------------------
                           Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
-# Reverting temporary sudoers changes for security
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
