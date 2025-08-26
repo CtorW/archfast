@@ -4,26 +4,72 @@
 #           Color Definitions for a More Beautiful Terminal Experience
 # ==============================================================================
 
-# Check if terminal supports colors and use tput, otherwise use raw codes
 if tput setaf 1 >/dev/null 2>&1; then
-    Color_Off="$(tput sgr0)"; Red="$(tput setaf 1)"; Green="$(tput setaf 2)"; Yellow="$(tput setaf 3)"; Blue="$(tput setaf 4)"; Purple="$(tput setaf 5)"; Cyan="$(tput setaf 6)"; White="$(tput setaf 7)"; BRed="$(tput bold; tput setaf 1)"; BGreen="$(tput bold; tput setaf 2)"; BYellow="$(tput bold; tput setaf 3)"; BBlue="$(tput bold; tput setaf 4)"; BPurple="$(tput bold; tput setaf 5)"; BCyan="$(tput bold; tput setaf 6)"; BWhite="$(tput bold; tput setaf 7)"; BIBlack="$(tput bold; tput setaf 8)"; BIRed="$(tput bold; tput setaf 9)"; BIGreen="$(tput bold; tput setaf 10)"; BIYellow="$(tput bold; tput setaf 11)"; BIBlue="$(tput bold; tput setaf 12)"; BIPurple="$(tput bold; tput setaf 13)"; BICyan="$(tput bold; tput setaf 14)"; BIWhite="$(tput bold; tput setaf 15)";
+    Color_Off="$(tput sgr0)"
+    Black="$(tput setaf 0)"
+    Red="$(tput setaf 1)"
+    Green="$(tput setaf 2)"
+    Yellow="$(tput setaf 3)"
+    Blue="$(tput setaf 4)"
+    Purple="$(tput setaf 5)"
+    Cyan="$(tput setaf 6)"
+    White="$(tput setaf 7)"
+
+    BBlack="$(tput bold; tput setaf 0)"
+    BRed="$(tput bold; tput setaf 1)"
+    BGreen="$(tput bold; tput setaf 2)"
+    BYellow="$(tput bold; tput setaf 3)"
+    BBlue="$(tput bold; tput setaf 4)"
+    BPurple="$(tput bold; tput setaf 5)"
+    BCyan="$(tput bold; tput setaf 6)"
+    BWhite="$(tput bold; tput setaf 7)"
+
+    BIBlack="$(tput bold; tput setaf 8)"
+    BIRed="$(tput bold; tput setaf 9)"
+    BIGreen="$(tput bold; tput setaf 10)"
+    BIYellow="$(tput bold; tput setaf 11)"
+    BIBlue="$(tput bold; tput setaf 12)"
+    BIPurple="$(tput bold; tput setaf 13)"
+    BICyan="$(tput bold; tput setaf 14)"
+    BIWhite="$(tput bold; tput setaf 15)"
 else
-    Color_Off="\033[0m"; Red="\033[0;31m"; Green="\033[0;32m"; Yellow="\033[0;33m"; Blue="\033[0;34m"; Purple="\033[0;35m"; Cyan="\033[0;36m"; White="\033[0;37m"; BRed="\033[1;31m"; BGreen="\033[1;32m"; BYellow="\033[1;33m"; BBlue="\033[1;34m"; BPurple="\033[1;35m"; BCyan="\033[1;36m"; BWhite="\033[1;37m"; BIBlack="\033[1;90m"; BIRed="\033[1;91m"; BIGreen="\033[1;92m"; BIYellow="\033[1;93m"; BIBlue="\033[1;94m"; BIPurple="\033[1;95m"; BICyan="\033[1;96m"; BIWhite="\033[1;97m";
+    Color_Off="\033[0m"
+    Black="\033[0;30m"
+    Red="\033[0;31m"
+    Green="\033[0;32m"
+    Yellow="\033[0;33m"
+    Blue="\033[0;34m"
+    Purple="\033[0;35m"
+    Cyan="\033[0;36m"
+    White="\033[0;37m"
+
+    BBlack="\033[1;30m"
+    BRed="\033[1;31m"
+    BGreen="\033[1;32m"
+    BYellow="\033[1;33m"
+    BBlue="\033[1;34m"
+    BPurple="\033[1;35m"
+    BCyan="\033[1;36m"
+    BWhite="\033[1;37m"
+    
+    BIBlack="\033[1;90m"
+    BIRed="\033[1;91m"
+    BIGreen="\033[1;92m"
+    BIYellow="\033[1;93m"
+    BIBlue="\033[1;94m"
+    BIPurple="\033[1;95m"
+    BICyan="\033[1;96m"
+    BIWhite="\033[1;97m"
 fi
 
-# ==============================================================================
-#                        LOGGING & TTY SETUP
-# ==============================================================================
-
-exec 3>&1 4>&2
-
-exec > >(tee -i archsetup.txt) 2>&1
-
+exec > >(tee -i archsetup.txt)
+exec 2>&1
 
 # ==============================================================================
 #                          Initial System Checks
 # ==============================================================================
 logo() {
+ clear
  echo -en "
 ${BCyan}-------------------------------------------------------------------------
      █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
@@ -35,285 +81,179 @@ ${BCyan}------------------------------------------------------------------------
 -------------------------------------------------------------------------
 ${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
-" >&3
+"
 }
 
-if [ ! -f /usr/bin/pacstrap ]; then echo -e "${BRed}ERROR: Must be run from Arch ISO.${Color_Off}"; exit 1; fi
-root_check() { if [[ "$(id -u)" != "0" ]]; then echo -e "${BRed}ERROR: Must be run as root.${Color_Off}\n"; exit 1; fi; }
-docker_check() { if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r || [[ -f /.dockerenv ]]; then echo -e "${BRed}ERROR: Docker not supported.${Color_Off}\n"; exit 1; fi; }
-arch_check() { if [[ ! -e /etc/arch-release ]]; then echo -e "${BRed}ERROR: Must be run in Arch Linux.${Color_Off}"; exit 1; fi; }
-pacman_check() { if [[ -f /var/lib/pacman/db.lck ]]; then echo -e "${BRed}ERROR: Pacman is locked.${Color_Off}"; exit 1; fi; }
-background_checks() { root_check; arch_check; pacman_check; docker_check; }
+if [ ! -f /usr/bin/pacstrap ]; then
+    echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
+    exit 1
+fi
 
-# ==============================================================================
-#                Python Curses TUI Script Generation
-# ==============================================================================
-create_tui_script() {
-    cat << 'EOF' > tui.py
-#!/usr/bin/env python3
+root_check() {
+    if [[ "$(id -u)" != "0" ]]; then
+        echo -e "${BRed}ERROR: This script must be run under the 'root' user!${Color_Off}\n"
+        exit 1
+    fi
+}
 
-import curses
-import os
-import subprocess
-import sys
+docker_check() {
+    if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r; then
+        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
+        exit 1
+    elif [[ -f /.dockerenv ]]; then
+        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
+        exit 1
+    fi
+}
 
-def setup_colors():
-    """Initializes color pairs for the TUI."""
-    if curses.has_colors():
-        curses.start_color()
-        curses.use_default_colors()
-        curses.init_pair(1, curses.COLOR_CYAN, -1)
-        curses.init_pair(2, curses.COLOR_YELLOW, -1)
-        curses.init_pair(3, curses.COLOR_GREEN, -1)
-        curses.init_pair(4, curses.COLOR_RED, -1)
-        curses.init_pair(5, curses.COLOR_WHITE, -1)
-        curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_YELLOW)
+arch_check() {
+    if [[ ! -e /etc/arch-release ]]; then
+        echo -e "${BRed}ERROR: This script must be run in Arch Linux! Exiting.${Color_Off}"
+        exit 1
+    fi
+}
 
-def get_input(stdscr, y, x, prompt_string):
-    """Displays a prompt and returns the user's input."""
-    stdscr.addstr(y, x, prompt_string)
-    stdscr.refresh()
-    curses.echo()
-    curses.curs_set(1)
-    input_str = stdscr.getstr(y + 1, x, 60).decode('utf-8')
-    curses.noecho()
-    curses.curs_set(0)
-    return input_str
+pacman_check() {
+    if [[ -f /var/lib/pacman/db.lck ]]; then
+        echo -e "${BRed}ERROR: Pacman is blocked.${Color_Off}"
+        echo -e "${BRed}If you are sure no pacman process is running, remove /var/lib/pacman/db.lck and try again.${Color_Off}\n"
+        exit 1
+    fi
+}
 
-def get_password(stdscr, y, x, prompt_string):
-    """Displays a password prompt and returns the user's input."""
-    stdscr.addstr(y, x, prompt_string)
-    stdscr.refresh()
-    curses.noecho()
-    curses.curs_set(1)
-    password = b""
-    while True:
-        try:
-            ch = stdscr.getch()
-            if ch == 10:
-                break
-            elif ch in [curses.KEY_BACKSPACE, 127, 8]:
-                if len(password) > 0:
-                    h, w = stdscr.getyx()
-                    stdscr.move(h, w - 1)
-                    stdscr.delch()
-                    password = password[:-1]
-            elif 32 <= ch <= 126:
-                password += bytes([ch])
-                stdscr.addch('*')
-        except KeyboardInterrupt:
-             sys.exit(1)
-    curses.curs_set(0)
-    return password.decode('utf-8')
-
-def display_menu(stdscr, title, options):
-    """Displays a menu and returns the selected option string."""
-    selected_idx = 0
-    curses.curs_set(0)
-    
-    while True:
-        stdscr.clear()
-        h, w = stdscr.getmaxyx()
-        
-        title_y = 2
-        for i, line in enumerate(title.split('\n')):
-            title_x = w // 2 - len(line) // 2
-            stdscr.addstr(title_y + i, title_x, line, curses.A_BOLD)
-
-        for i, option in enumerate(options):
-            opt_x = w // 2 - len(option) // 2
-            if i == selected_idx:
-                stdscr.addstr(title_y + len(title.split('\n')) + 2 + i, opt_x, f"> {option} <", curses.A_REVERSE)
-            else:
-                stdscr.addstr(title_y + len(title.split('\n')) + 2 + i, opt_x, f"  {option}  ")
-        
-        stdscr.refresh()
-        try:
-            key = stdscr.getch()
-        except KeyboardInterrupt:
-            sys.exit(1)
-
-        if key == curses.KEY_UP:
-            selected_idx = (selected_idx - 1) % len(options)
-        elif key == curses.KEY_DOWN:
-            selected_idx = (selected_idx + 1) % len(options)
-        elif key in [curses.KEY_ENTER, 10, 13]:
-            if not options:
-                return None
-            return options[selected_idx]
-
-def userinfo(stdscr):
-    setup_colors()
-    username = ""
-    password = ""
-    hostname = ""
-    while not username:
-        username = get_input(stdscr, 2, 2, "Enter a username for your new system:")
-    
-    while True:
-        stdscr.clear()
-        stdscr.addstr(2, 2, f"Username: {username}")
-        password = get_password(stdscr, 4, 2, "Enter password:")
-        password2 = get_password(stdscr, 7, 2, "Re-enter password:")
-        if password == password2 and password != "":
-            break
-        else:
-            stdscr.addstr(10, 2, "Passwords do not match or are empty. Press any key to try again.", curses.color_pair(4))
-            stdscr.getch()
-
-    while not hostname:
-        stdscr.clear()
-        stdscr.addstr(2, 2, f"Username: {username}")
-        stdscr.addstr(4, 2, "Password: [set]")
-        hostname = get_input(stdscr, 7, 2, "Please name your machine (hostname):")
-
-    print(f"{username}\n{password}\n{hostname}")
-
-def diskpart(stdscr):
-    setup_colors()
-    disk_list_cmd = "lsblk -o KNAME,SIZE,MODEL -d | grep -E 'sd|hd|vd|nvme|mmcblk'"
-    disks_raw = subprocess.check_output(disk_list_cmd, shell=True).decode('utf-8').strip().split('\n')
-    disk_options = [f"{d.split()[0]:<10} {d.split()[1]:<10} {' '.join(d.split()[2:])}" for d in disks_raw]
-    
-    selected_disk_str = display_menu(stdscr, "WARNING: THIS WILL FORMAT THE DISK.\nPlease select the disk to install Arch Linux on:", disk_options)
-    if not selected_disk_str:
-        sys.exit(1)
-        
-    selected_disk = selected_disk_str.split()[0]
-    
-    is_ssd_str = display_menu(stdscr, f"Is /dev/{selected_disk} an SSD?", ["Yes", "No"])
-    mount_options = "noatime,compress=zstd,ssd,commit=120" if is_ssd_str == "Yes" else "noatime,compress=zstd,commit=120"
-    print(f"/dev/{selected_disk}\n{mount_options}")
-
-def filesystem(stdscr):
-    setup_colors()
-    fs_options = ["btrfs", "ext4", "luks"]
-    fs_choice = display_menu(stdscr, "Please select a filesystem:", fs_options)
-    
-    luks_password = ""
-    if fs_choice == "luks":
-        stdscr.clear()
-        while True:
-            luks_pass1 = get_password(stdscr, 8, 2, "Enter a strong password for disk encryption:")
-            luks_pass2 = get_password(stdscr, 11, 2, "Re-enter the password to confirm:")
-            if luks_pass1 == luks_pass2 and luks_pass1 != "":
-                luks_password = luks_pass1
-                break
-            else:
-                stdscr.addstr(14, 2, "Passwords do not match or are empty. Please try again.", curses.color_pair(4))
-                stdscr.getch()
-                stdscr.clear()
-
-    print(f"{fs_choice}\n{luks_password}")
-
-def timezone(stdscr):
-    setup_colors()
-    try:
-        detected_timezone = subprocess.check_output("curl --fail https://ipapi.co/timezone", shell=True).decode('utf-8').strip()
-        confirm = display_menu(stdscr, f"System detected your timezone to be '{detected_timezone}'.\nIs this correct?", ["Yes", "No"])
-        if confirm == "Yes":
-            print(detected_timezone)
-            return
-    except subprocess.CalledProcessError:
-        pass
-    stdscr.clear()
-    new_timezone = ""
-    while not new_timezone:
-        new_timezone = get_input(stdscr, 5, 2, "Enter your desired timezone (e.g., Europe/London):")
-    print(new_timezone)
-
-def keymap(stdscr):
-    setup_colors()
-    common_layouts = ["us", "de", "fr", "es", "More..."]
-    keymap_choice = display_menu(stdscr, "Select a common keyboard layout:", common_layouts)
-
-    if keymap_choice == "More...":
-        all_layouts_cmd = r"find /usr/share/kbd/keymaps/ -name '*.map.gz' -printf '%f\n' | sed 's/\.map\.gz$//' | sort"
-        all_layouts = subprocess.check_output(all_layouts_cmd, shell=True).decode('utf-8').strip().split('\n')
-        keymap_choice = display_menu(stdscr, "Select your keyboard layout:", all_layouts)
-
-    print(keymap_choice)
-
-def confirm_installation(stdscr):
-    setup_colors()
-    answer = display_menu(stdscr, "Are you ready to begin the installation?\nAll data on the selected disk will be erased.", ["Yes", "No"])
-    if answer == "Yes":
-        print("yes")
-    else:
-        print("no")
-
-def main(stdscr):
-    if len(sys.argv) > 1:
-        screen = sys.argv[1]
-        if screen == 'userinfo': userinfo(stdscr)
-        elif screen == 'diskpart': diskpart(stdscr)
-        elif screen == 'filesystem': filesystem(stdscr)
-        elif screen == 'timezone': timezone(stdscr)
-        elif screen == 'keymap': keymap(stdscr)
-        elif screen == 'confirm': confirm_installation(stdscr)
-
-if __name__ == '__main__':
-    try:
-        curses.wrapper(main)
-    except KeyboardInterrupt:
-        sys.exit(1)
-    except Exception:
-        sys.exit(1)
-EOF
-    chmod +x tui.py
+background_checks() {
+    root_check
+    arch_check
+    pacman_check
+    docker_check
 }
 
 # ==============================================================================
-#                          Interactive Prompts (using Python Curses TUI)
+#                          Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
-    echo -e "${BGreen}Checking for python...${Color_Off}"
-    pacman -S --noconfirm --needed python
-    create_tui_script
+    echo -e "${BGreen}Checking for whiptail...${Color_Off}"
+    pacman -S --noconfirm --needed whiptail
+    
+    USERNAME=$(whiptail --title "User Account Setup" --inputbox \
+    "Please enter your desired username.\n\n(Use lowercase letters, no spaces. e.g., 'alex')" 10 60 archuser 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    export USERNAME
 
-    USER_DATA=$(./tui.py userinfo >&3 2>&4)
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"; exit 1;
-    fi
+    local password_match=false
+    while [ "$password_match" = false ]; do
+        PASSWORD=$(whiptail --title "Set User Password" --passwordbox "Enter a password for user '$USERNAME':" 10 60 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+        
+        PASSWORD2=$(whiptail --title "Confirm User Password" --passwordbox "Please re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
 
-    USERNAME=$(echo "$USER_DATA" | sed -n 1p)
-    PASSWORD=$(echo "$USER_DATA" | sed -n 2p)
-    NAME_OF_MACHINE=$(echo "$USER_DATA" | sed -n 3p)
-
-    if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ] || [ -z "$NAME_OF_MACHINE" ]; then
-        echo -e "${BRed}User provided empty input. Exiting.${Color_Off}"; exit 1;
-    fi
-    export USERNAME PASSWORD NAME_OF_MACHINE
+        if [ "$PASSWORD" == "$PASSWORD2" ]; then
+            password_match=true
+        else
+            whiptail --title "Password Mismatch" --msgbox "The passwords you entered do not match. Please try again." 10 60
+        fi
+    done
+    export PASSWORD
+    
+    NAME_OF_MACHINE=$(whiptail --title "System Hostname" --inputbox \
+    "Please enter a hostname for this machine.\n\n(This is how it will appear on a network. e.g., 'arch-desktop')" 10 60 myarch 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    export NAME_OF_MACHINE
 }
 
 diskpart () {
-    DISK_DATA=$(./tui.py diskpart >&3 2>&4)
-    if [ $? -ne 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
-    DISK=$(echo "$DISK_DATA" | sed -n 1p)
-    MOUNT_OPTIONS=$(echo "$DISK_DATA" | sed -n 2p)
-    if [ -z "$DISK" ]; then echo -e "${BRed}No disk selected. Exiting.${Color_Off}"; exit 1; fi
-    export DISK MOUNT_OPTIONS
+    declare -a disk_list=()
+    while read -r line; do
+        disk_name=$(echo "$line" | awk '{print $1}')
+        disk_size=$(echo "$line" | awk '{print $2}')
+        disk_model=$(echo "$line" | awk '{print $3}')
+        disk_list+=("${disk_name}" "(${disk_size}) ${disk_model}")
+    done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
+
+    DISK=$(whiptail --title "Select Target Installation Disk" --menu \
+    "Please select the disk to install Arch Linux onto.\n\n[ DANGER ]: All data on the selected disk will be PERMANENTLY DELETED." 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    export DISK="/dev/${DISK}"
+
+    if (whiptail --title "Storage Optimization" --yesno \
+    "Is the selected disk an SSD?\n\n(Choosing 'Yes' will apply SSD-specific mount options for better performance and longevity.)" 10 60 3>&1 1>&2 2>&3); then
+        export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
+    else
+        export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
+    fi
 }
 
 filesystem () {
-    FS_DATA=$(./tui.py filesystem >&3 2>&4)
-    if [ $? -ne 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
-    FS=$(echo "$FS_DATA" | sed -n 1p)
-    LUKS_PASSWORD=$(echo "$FS_DATA" | sed -n 2p)
-    if [ -z "$FS" ]; then echo -e "${BRed}No filesystem selected. Exiting.${Color_Off}"; exit 1; fi
-    export FS LUKS_PASSWORD
+    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist \
+    "Choose the filesystem for your root partition.\n(Use arrow keys and SPACE to select)" 15 78 3 \
+    "btrfs" "Modern filesystem with compression & snapshots" ON \
+    "ext4"  "Traditional, stable, and widely-used" OFF \
+    "luks"  "Btrfs with full-disk encryption for security" OFF 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    export FS=${FS_CHOICE}
+    
+    if [[ "${FS}" == "luks" ]]; then
+        local luks_match=false
+        while [ "$luks_match" = false ]; do
+            LUKS_PASSWORD=$(whiptail --title "Set Encryption Password" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+            LUKS_PASSWORD2=$(whiptail --title "Confirm Encryption Password" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
+            if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+
+            if [[ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]]; then
+                luks_match=true
+            else
+                whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
+            fi
+        done
+        export LUKS_PASSWORD
+    fi
 }
 
 timezone () {
-    TIMEZONE=$(./tui.py timezone >&3 2>&4)
-    if [ $? -ne 0 ] || [ -z "$TIMEZONE" ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
-    export TIMEZONE
+    TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
+    if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
+        if (whiptail --title "Timezone Confirmation" --yesno "Your timezone appears to be '${TIME_ZONE}'.\n\nIs this correct?" 10 60 3>&1 1>&2 2>&3); then
+            export TIMEZONE=$TIME_ZONE
+            return
+        fi
+    fi
+    
+    echo -e "${BYellow}Warning: Timezone auto-detection failed or was rejected. Please enter it manually.${Color_Off}"
+    NEW_TIMEZONE=$(whiptail --title "Manual Timezone Entry" --inputbox \
+    "Please enter your timezone.\n(Format: Region/City, e.g., America/New_York, Europe/Paris)" 10 60 "Etc/UTC" 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    export TIMEZONE=$NEW_TIMEZONE
 }
 
 keymap () {
-    KEYMAP=$(./tui.py keymap >&3 2>&4)
-    if [ $? -ne 0 ] || [ -z "$KEYMAP" ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
-    export KEYMAP
+    local keymap_choice
+
+    keymap_choice=$(whiptail --title "Keyboard Layout" --menu \
+    "Select a common keyboard layout, or choose 'More...' for a full list." 15 60 7 \
+    "us" "United States (QWERTY)" \
+    "de" "Germany (QWERTZ)" \
+    "fr" "France (AZERTY)" \
+    "uk" "United Kingdom" \
+    "es" "Spain" \
+    "br-abnt2" "Brazil" \
+    "More..." "Browse all available layouts" 3>&1 1>&2 2>&3)
+    
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+
+    if [ "$keymap_choice" == "More..." ]; then
+        declare -a keymap_list=()
+        while read -r line; do
+            keymap_list+=("$(echo "$line" | cut -d' ' -f1)" "$(echo "$line" | cut -d' ' -f2-)")
+        done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
+
+        keymap_choice=$(whiptail --title "All Keyboard Layouts" --menu "Select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    fi
+
+    echo -e "${BGreen}Keyboard layout set to: ${keymap_choice}${Color_Off}"
+    export KEYMAP="${keymap_choice}"
 }
 
 # ==============================================================================
@@ -321,18 +261,33 @@ keymap () {
 # ==============================================================================
 
 background_checks
+clear
 logo
 userinfo
+clear
+logo
 diskpart
+clear
+logo
 filesystem
+clear
+logo
 timezone
+clear
+logo
 keymap
 clear
 
+SUMMARY="
+    User:           ${USERNAME}
+    Hostname:       ${NAME_OF_MACHINE}
+    Timezone:       ${TIMEZONE}
+    Keyboard:       ${KEYMAP}
+    Filesystem:     ${FS}
+"
 
-clear >&3
-
-if [ "$(./tui.py confirm >&3 2>&4)" == "yes" ]; then
+if (whiptail --title "FINAL CONFIRMATION" --yesno \
+"Please review your settings before proceeding.\n\n------------------------------------------------\n${SUMMARY}\n------------------------------------------------\n\nInstallation Target:  ${DISK}\n\n[  WARNING  ]\nContinuing will PARTITION and FORMAT the disk, permanently ERASING ALL DATA.\n\nAre you absolutely sure you want to begin the installation?" 22 78 3>&1 1>&2 2>&3); then
      echo -en "
 ${BCyan}-------------------------------------------------------------------------
 ██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
@@ -363,7 +318,7 @@ else
 fi
 
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
-iso=$(curl -4 ifconfig.co/country_code)
+iso=$(curl -4 ifconfig.io/country_code)
 timedatectl set-ntp true
 pacman -Sy
 pacman -S --noconfirm archlinux-keyring
@@ -440,8 +395,8 @@ elif [[ "${FS}" == "luks" ]]; then
     mkfs.fat -F32 "${partition2}"
     echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
     echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-    mkfs.btrfs /dev/mapper/ROOT
-    mount -t btrfs /dev/mapper/ROOT /mnt
+    mkfs.btrfs "${partition3}"
+    mount -t btrfs "${partition3}" /mnt
     subvolumesetup
     ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
 fi
@@ -478,17 +433,13 @@ cat /mnt/etc/fstab
 
 echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
+    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
     grub-install --boot-directory=/mnt/boot "${DISK}"
     if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
+        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
         exit 1
     fi
 fi
-
-echo -e "${BGreen}Detecting GPU for driver installation...${Color_Off}"
-gpu_type=$(lspci | grep -E "VGA|3D")
-export gpu_type
 
 echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
 TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
@@ -506,7 +457,7 @@ if [[ $TOTAL_MEM -lt 8000000 ]]; then
     echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
 fi
 
-arch-chroot /mnt /bin/bash -c "gpu_type='${gpu_type}' KEYMAP='${KEYMAP}' TIMEZONE='${TIMEZONE}' USERNAME='${USERNAME}' PASSWORD='${PASSWORD}' NAME_OF_MACHINE='${NAME_OF_MACHINE}' FS='${FS}' ENCRYPTED_PARTITION_UUID='${ENCRYPTED_PARTITION_UUID}' DISK='${DISK}' /bin/bash" <<'EOF'
+arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
 
 echo "root:${PASSWORD}" | chpasswd
 
@@ -527,19 +478,19 @@ pacman -S --noconfirm --needed pacman-contrib curl
 pacman -S --noconfirm --needed reflector rsync grub arch-install-scripts git ntp wget
 cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
-nc=$(grep -c ^"cpu cores" /proc/cpuinfo)
+nc=\$(grep -c ^"cpu cores" /proc/cpuinfo)
 export nc
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                    You have ${nc} cores. And
-              changing the makeflags for ${nc} cores. Aswell as
+                    You have \${nc} cores. And
+              changing the makeflags for \${nc} cores. Aswell as
                    changing the compression settings.
 -------------------------------------------------------------------------${Color_Off}
 "
-TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-if [[ $TOTAL_MEM -gt 8000000 ]]; then
-    sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j${nc}\"/g" /etc/makepkg.conf
-    sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T ${nc} -z -)/g" /etc/makepkg.conf
+TOTAL_MEM=\$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+if [[ \$TOTAL_MEM -gt 8000000 ]]; then
+    sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\${nc}\"/g" /etc/makepkg.conf
+    sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \${nc} -z -)/g" /etc/makepkg.conf
 fi
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
@@ -551,16 +502,19 @@ locale-gen
 timedatectl --no-ask-password set-timezone ${TIMEZONE}
 timedatectl --no-ask-password set-ntp 1
 localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
-ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 
 echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
+echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
 echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
 
 sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 
 sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+
 sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
+
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 pacman -Sy --noconfirm --needed
 
@@ -584,17 +538,17 @@ ${BGreen}-----------------------------------------------------------------------
                  Installing Graphics Drivers
 -------------------------------------------------------------------------${Color_Off}
 "
-if echo "${gpu_type}" | grep -qiE "NVIDIA|GeForce"; then
+if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
     echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
     pacman -S --noconfirm --needed nvidia-lts
-elif echo "${gpu_type}" | grep -qiE "Radeon|AMD"; then
+elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
     echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
     pacman -S --noconfirm --needed xf86-video-amdgpu
-elif echo "${gpu_type}" | grep -qiE "Integrated Graphics Controller|Intel"; then
+elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
     echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
     pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
 else
-    echo -e "${BYellow}Unable to determine GPU vendor (${gpu_type}). Skipping graphics driver installation.${Color_Off}"
+    echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
 fi
 
 echo -ne "
@@ -613,21 +567,31 @@ echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
 echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
 wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
 echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
-chown $USERNAME:$USERNAME /home/$USERNAME/fast-hyprland.sh
-chmod +x /home/$USERNAME/fast-hyprland.sh
+cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
 
 if [[ ${FS} == "luks" ]]; then
-    sed -i 's/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block filesystems fsck)/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
+    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+    mkinitcpio -p linux-lts
 fi
-mkinitcpio -p linux-lts
 
 echo -ne "
+${BCyan}-------------------------------------------------------------------------
+     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
+    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
+    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
+    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
+    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
+-------------------------------------------------------------------------
+${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BCyan}-------------------------------------------------------------------------${Color_Off}
+
 ${BGreen}Final Setup and Configurations
 GRUB EFI Bootloader Install & Check${Color_Off}"
 
 if [[ -d "/sys/firmware/efi" ]]; then
     echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+    grub-install --efi-directory=/boot "${DISK}"
     if [ $? -ne 0 ]; then
         echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
         exit 1
@@ -667,10 +631,13 @@ ${BGreen}-----------------------------------------------------------------------
                    Enabling Essential Services
 -------------------------------------------------------------------------${Color_Off}
 "
+ntpd -qg
 systemctl enable ntpd.service
 echo -e "${BGreen}  NTP enabled.${Color_Off}"
 systemctl disable dhcpcd.service
 echo -e "${BGreen}  DHCP disabled.${Color_Off}"
+systemctl start NetworkManager.service
+echo -e "${BGreen}  NetworkManager started.${Color_Off}"
 systemctl enable NetworkManager.service
 echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
 systemctl enable reflector.timer
@@ -686,10 +653,3 @@ sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
 EOF
-
-rm -f tui.py
-
-exec 1>&3 2>&4
-
-echo -e "${BIGreen}Installation is complete! You can now reboot your system.${Color_Off}"
-echo -e "${BIYellow}After rebooting, log in as '$USERNAME' to continue with the fast-hyprland setup by running ./fast-hyprland.sh${Color_Off}"
