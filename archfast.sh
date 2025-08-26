@@ -1,73 +1,14 @@
 #!/bin/bash
 
 # ==============================================================================
-#           Color Definitions for a More Beautiful Terminal Experience
+#           Gum Definitions for a More Beautiful Terminal Experience
 # ==============================================================================
 
-# Check if terminal supports colors and use tput, otherwise use raw codes
-if tput setaf 1 >/dev/null 2>&1; then
-    # Standard Colors
-    Color_Off="$(tput sgr0)"
-    Black="$(tput setaf 0)"
-    Red="$(tput setaf 1)"
-    Green="$(tput setaf 2)"
-    Yellow="$(tput setaf 3)"
-    Blue="$(tput setaf 4)"
-    Purple="$(tput setaf 5)"
-    Cyan="$(tput setaf 6)"
-    White="$(tput setaf 7)"
-
-    # Bold Colors
-    BBlack="$(tput bold; tput setaf 0)"
-    BRed="$(tput bold; tput setaf 1)"
-    BGreen="$(tput bold; tput setaf 2)"
-    BYellow="$(tput bold; tput setaf 3)"
-    BBlue="$(tput bold; tput setaf 4)"
-    BPurple="$(tput bold; tput setaf 5)"
-    BCyan="$(tput bold; tput setaf 6)"
-    BWhite="$(tput bold; tput setaf 7)"
-
-    # Bright Bold Colors
-    BIBlack="$(tput bold; tput setaf 8)"
-    BIRed="$(tput bold; tput setaf 9)"
-    BIGreen="$(tput bold; tput setaf 10)"
-    BIYellow="$(tput bold; tput setaf 11)"
-    BIBlue="$(tput bold; tput setaf 12)"
-    BIPurple="$(tput bold; tput setaf 13)"
-    BICyan="$(tput bold; tput setaf 14)"
-    BIWhite="$(tput bold; tput setaf 15)"
-else
-    # Fallback to hardcoded ANSI codes if tput is not available or supported
-    Color_Off="\033[0m"
-    Black="\033[0;30m"
-    Red="\033[0;31m"
-    Green="\033[0;32m"
-    Yellow="\033[0;33m"
-    Blue="\033[0;34m"
-    Purple="\033[0;35m"
-    Cyan="\033[0;36m"
-    White="\033[0;37m"
-
-    BBlack="\033[1;30m"
-    BRed="\033[1;31m"
-    BGreen="\033[1;32m"
-    BYellow="\033[1;33m"
-    BBlue="\033[1;34m"
-    BPurple="\033[1;35m"
-    BCyan="\033[1;36m"
-    BWhite="\033[1;37m"
-    
-    BIBlack="\033[1;90m"
-    BIRed="\033[1;91m"
-    BIGreen="\033[1;92m"
-    BIYellow="\033[1;93m"
-    BIBlue="\033[1;94m"
-    BIPurple="\033[1;95m"
-    BICyan="\033[1;96m"
-    BIWhite="\033[1;97m"
+if ! command -v gum &> /dev/null; then
+    echo "gum not found, installing..."
+    pacman -S --noconfirm gum
 fi
 
-# Redirect all output to a log file
 exec > >(tee -i archsetup.txt)
 exec 2>&1
 
@@ -76,8 +17,9 @@ exec 2>&1
 # ==============================================================================
 logo() {
  clear
- echo -en "
-${BCyan}-------------------------------------------------------------------------
+    gum style \
+ --border normal --margin "1" --padding "1 2" --border-foreground 212 "
+-------------------------------------------------------------------------
      █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
     ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
     ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
@@ -85,44 +27,44 @@ ${BCyan}------------------------------------------------------------------------
     ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
-${BYellow}                 Automated Arch Linux Installer${Color_Off}
-${BCyan}-------------------------------------------------------------------------${Color_Off}
+            Automated Arch Linux Installer
+-------------------------------------------------------------------------
 "
 }
 
 if [ ! -f /usr/bin/pacstrap ]; then
-    echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
+    gum style --foreground "red" "ERROR: This script must be run from an Arch Linux ISO environment. Exiting."
     exit 1
 fi
 
 root_check() {
     if [[ "$(id -u)" != "0" ]]; then
-        echo -e "${BRed}ERROR: This script must be run under the 'root' user!${Color_Off}\n"
+        gum style --foreground "red" "ERROR: This script must be run under the 'root' user!"
         exit 1
     fi
 }
 
 docker_check() {
     if awk -F/ '$2 == "docker"' /proc/self/cgroup | read -r; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
+        gum style --foreground "red" "ERROR: Docker container is not supported (at the moment). Exiting."
         exit 1
     elif [[ -f /.dockerenv ]]; then
-        echo -e "${BRed}ERROR: Docker container is not supported (at the moment). Exiting.${Color_Off}\n"
+        gum style --foreground "red" "ERROR: Docker container is not supported (at the moment). Exiting."
         exit 1
     fi
 }
 
 arch_check() {
     if [[ ! -e /etc/arch-release ]]; then
-        echo -e "${BRed}ERROR: This script must be run in Arch Linux! Exiting.${Color_Off}"
+        gum style --foreground "red" "ERROR: This script must be run in Arch Linux! Exiting."
         exit 1
     fi
 }
 
 pacman_check() {
     if [[ -f /var/lib/pacman/db.lck ]]; then
-        echo -e "${BRed}ERROR: Pacman is blocked.${Color_Off}"
-        echo -e "${BRed}If you are sure no pacman process is running, remove /var/lib/pacman/db.lck and try again.${Color_Off}\n"
+        gum style --foreground "red" "ERROR: Pacman is blocked."
+        gum style --foreground "red" "If you are sure no pacman process is running, remove /var/lib/pacman/db.lck and try again."
         exit 1
     fi
 }
@@ -135,70 +77,60 @@ background_checks() {
 }
 
 # ==============================================================================
-#                          Interactive Prompts (using Whiptail TUI)
+#                          Interactive Prompts (using Gum TUI)
 # ==============================================================================
 userinfo () {
-    # Install whiptail if it's not already installed
-    echo -e "${BGreen}Checking for whiptail...${Color_Off}"
-    pacman -S --noconfirm --needed whiptail
-    
-    # Prompt for username
-    USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+    gum style --foreground "green" "Starting user setup..."
+
+    USERNAME=$(gum input --placeholder "Enter a username for your new system" --value "archuser")
+    if [ -z "$USERNAME" ]; then
+        gum style --foreground "red" "Username cannot be empty. Exiting."
         exit 1
     fi
     export USERNAME
 
-    # Prompt for password
     local password_match=false
     while [ "$password_match" = false ]; do
-        PASSWORD=$(whiptail --title "Password for $USERNAME" --passwordbox "Enter password:" 10 60 3>&1 1>&2 2>&3)
+        PASSWORD=$(gum input --password --placeholder "Enter password for $USERNAME")
         if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+            gum style --foreground "red" "User canceled. Exiting."
             exit 1
         fi
         
-        PASSWORD2=$(whiptail --title "Password for $USERNAME" --passwordbox "Re-enter password:" 10 60 3>&1 1>&2 2>&3)
+        PASSWORD2=$(gum input --password --placeholder "Re-enter password for $USERNAME")
         if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+            gum style --foreground "red" "User canceled. Exiting."
             exit 1
         fi
 
         if [ "$PASSWORD" == "$PASSWORD2" ]; then
             password_match=true
         else
-            whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
+            gum style --foreground "yellow" "Passwords do not match. Please try again."
         fi
     done
     export PASSWORD
     
-    # Prompt for hostname
-    NAME_OF_MACHINE=$(whiptail --title "Hostname Setup" --inputbox "Please name your machine (hostname):" 10 60 myarch 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+    NAME_OF_MACHINE=$(gum input --placeholder "Please name your machine (hostname)" --value "myarch")
+    if [ -z "$NAME_OF_MACHINE" ]; then
+        gum style --foreground "red" "Hostname cannot be empty. Exiting."
         exit 1
     fi
     export NAME_OF_MACHINE
 }
 
 diskpart () {
-    declare -a disk_list=()
-    while read -r line; do
-        disk_name=$(echo "$line" | awk '{print $1}')
-        disk_size=$(echo "$line" | awk '{print $2}')
-        disk_model=$(echo "$line" | awk '{print $3}')
-        disk_list+=("${disk_name}" "${disk_size} ${disk_model}")
-    done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
+    disk_list=$(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk" | awk '{print $1 " (" $2 ", " $3 " " $4 " " $5 " " $6")"}')
 
-    DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+    DISK=$(echo "$disk_list" | gum choose --header "Select the disk to install Arch Linux on. WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.")
+    if [ -z "$DISK" ]; then
+        gum style --foreground "red" "User canceled. Exiting."
         exit 1
     fi
+    DISK=$(echo "$DISK" | awk '{print $1}')
     export DISK="/dev/${DISK}"
 
-    if (whiptail --title "SSD?" --yesno "Is this an SSD?" 10 60 3>&1 1>&2 2>&3); then
+    if gum confirm "Is this an SSD?"; then
         export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
         export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
@@ -206,24 +138,22 @@ diskpart () {
 }
 
 filesystem () {
-    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:  (use space for selection)" 15 60 3 \
-    "btrfs" "Btrfs with zstd compression and snapshots" OFF \
-    "ext4" "Ext4 - a simple and reliable choice" OFF \
-    "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+    FS_CHOICE=$(gum choose "btrfs" "ext4" "luks" --header "Please select a filesystem:")
+    if [ -z "$FS_CHOICE" ]; then
+        gum style --foreground "red" "User canceled. Exiting."
         exit 1
     fi
     export FS=${FS_CHOICE}
     
     if [[ "${FS}" == "luks" ]]; then
-        LUKS_PASSWORD=""
-        LUKS_PASSWORD2="not_matching"
-        while [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; do
-            LUKS_PASSWORD=$(whiptail --title "LUKS Encryption" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
-            LUKS_PASSWORD2=$(whiptail --title "LUKS Encryption" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
-            if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; then
-                whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
+        local luks_password_match=false
+        while [ "$luks_password_match" = false ]; do
+            LUKS_PASSWORD=$(gum input --password --placeholder "Enter a strong password for disk encryption")
+            LUKS_PASSWORD2=$(gum input --password --placeholder "Re-enter the password to confirm")
+            if [[ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]]; then
+                luks_password_match=true
+            else
+                gum style --foreground "yellow" "Passwords do not match. Please try again."
             fi
         done
         export LUKS_PASSWORD
@@ -233,17 +163,15 @@ filesystem () {
 timezone () {
     TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
     if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
-        # If curl is successful and returns a value, ask for confirmation.
-        if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
+        if gum confirm "System detected your timezone to be '${TIME_ZONE}'. Is this correct?"; then
             export TIMEZONE=$TIME_ZONE
         else
-            # If the user says no, or if curl failed, prompt for manual input.
-            NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
+            NEW_TIMEZONE=$(gum input --placeholder "Enter your desired timezone (e.g., Europe/London)")
             export TIMEZONE=$NEW_TIMEZONE
         fi
     else
-        echo -e "${BYellow}Warning: Timezone auto-detection failed. Proceeding with manual prompt.${Color_Off}"
-        NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
+        gum style --foreground "yellow" "Warning: Timezone auto-detection failed. Proceeding with manual prompt."
+        NEW_TIMEZONE=$(gum input --placeholder "Enter your desired timezone (e.g., Europe/London)")
         export TIMEZONE=$NEW_TIMEZONE
     fi
 }
@@ -251,32 +179,21 @@ timezone () {
 keymap () {
     local keymap_choice
 
-    keymap_choice=$(whiptail --title "Keyboard Layout Selection" --menu "Select a common keyboard layout:" 15 60 7 \
-    "us" "United States" \
-    "de" "Germany" \
-    "fr" "France" \
-    "es" "Spain" \
-    "More..." "Browse all layouts" 3>&1 1>&2 2>&3)
+    keymap_choice=$(gum choose "us" "de" "fr" "es" "More..." --header "Select a common keyboard layout:")
     
-    if [ $? != 0 ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+    if [ -z "$keymap_choice" ]; then
+        gum style --foreground "red" "User canceled. Exiting."
         exit 1
     fi
 
     if [ "$keymap_choice" == "More..." ]; then
-        declare -a keymap_list=()
-        while read -r line; do
-            keymap_list+=("$(echo "$line" | cut -d' ' -f1)" "$(echo "$line" | cut -d' ' -f2-)")
-        done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
-
-        keymap_choice=$(whiptail --title "All Keyboard Layouts" --menu "Select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then
-            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+        keymap_choice=$(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | gum filter --placeholder "Select your keyboard layout")
+        if [ -z "$keymap_choice" ]; then
+            gum style --foreground "red" "User canceled. Exiting."
             exit 1
         fi
     fi
-
-    echo -e "${BGreen}Keyboard layout set to: ${keymap_choice}${Color_Off}"
+    gum style --foreground "green" "Keyboard layout set to: ${keymap_choice}"
     export KEYMAP="${keymap_choice}"
 }
 
@@ -284,7 +201,6 @@ keymap () {
 #                             Main Installation Workflow
 # ==============================================================================
 
-# Run initial checks before starting
 background_checks
 clear
 userinfo
@@ -297,9 +213,10 @@ timezone
 clear
 keymap
 
-if (whiptail --title "Installation Confirmation" --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
-     echo -en "
-${BCyan}-------------------------------------------------------------------------
+if gum confirm "Are you ready to begin the installation? All data on the selected disk will be erased."; then
+     gum style \
+ --border normal --margin "1" --padding "1 2" --border-foreground 212 "
+-------------------------------------------------------------------------
 ██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
 ██╔══██╗██║   ██║████╗  ██║████╗  ██║██║████╗  ██║██╔════╝               
 ██████╔╝██║   ██║██╔██╗ ██║██╔██╗ ██║██║██╔██╗ ██║██║  ███╗              
@@ -320,15 +237,15 @@ ${BCyan}------------------------------------------------------------------------
 ██║     ██║   ██║██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝                          
 ╚██████╗╚██████╔╝██║     ██║     ███████╗███████╗                        
  ╚═════╝ ╚═════╝ ╚═╝     ╚═╝     ╚══════╝╚══════╝                        
--------------------------------------------------------------------------${Color_Off}
+-------------------------------------------------------------------------
 "
 else
-    echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
+    gum style --foreground "red" "Installation canceled by user. Exiting."
     exit 1
 fi
 
-echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
-iso=$(curl -4 ifconfig.io/country_code)
+gum spin --spinner dot --title "Setting up mirrors for optimal download speed..." -- bash -c "
+iso=\$(curl -4 ifconfig.io/country_code)
 timedatectl set-ntp true
 pacman -Sy
 pacman -S --noconfirm archlinux-keyring
@@ -337,23 +254,22 @@ setfont ter-v18b
 sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 pacman -S --noconfirm --needed reflector rsync grub
 cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-echo -e "${BCyan}-------------------------------------------------------------------------
-              Setting up $iso mirrors for faster downloads
--------------------------------------------------------------------------${Color_Off}"
-reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
-if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-    echo -e "${BRed}Warning: Reflector failed. Restoring original mirrorlist.${Color_Off}"
+echo -e \"\nSetting up \$iso mirrors for faster downloads\"
+reflector -a 48 -c \"\$iso\" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
+if [[ \$(grep -c \"Server =\" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
+    echo \"Warning: Reflector failed. Restoring original mirrorlist.\"
     cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
 fi
+"
 
 if [ ! -d "/mnt" ]; then
     mkdir /mnt
 fi
 
-echo -e "${BGreen}Installing Prerequisites...${Color_Off}"
+gum style --foreground "green" "Installing Prerequisites..."
 pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
 
-echo -e "${BGreen}Formatting Disk...${Color_Off}"
+gum style --foreground "green" "Formatting Disk..."
 umount -A --recursive /mnt
 sgdisk -Z "${DISK}"
 sgdisk -a 2048 -o "${DISK}"
@@ -366,7 +282,7 @@ if [[ ! -d "/sys/firmware/efi" ]]; then
 fi
 partprobe "${DISK}"
 
-echo -e "${BGreen}Creating Filesystems...${Color_Off}"
+gum style --foreground "green" "Creating Filesystems..."
 createsubvolumes () {
     btrfs subvolume create /mnt/@
     btrfs subvolume create /mnt/@home
@@ -415,20 +331,20 @@ BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
 
 sync
 if ! mountpoint -q /mnt; then
-    echo -e "${BRed}ERROR: Failed to mount ${partition3} to /mnt. Exiting.${Color_Off}"
+    gum style --foreground "red" "ERROR: Failed to mount ${partition3} to /mnt. Exiting."
     exit 1
 fi
 mkdir -p /mnt/boot
 mount -U "${BOOT_UUID}" /mnt/boot/
 
 if ! grep -qs '/mnt' /proc/mounts; then
-    echo -e "${BRed}ERROR: Drive is not mounted. Rebooting in 3 seconds...${Color_Off}" && sleep 1
-    echo -e "${BRed}Rebooting in 2 seconds...${Color_Off}" && sleep 1
-    echo -e "${BRed}Rebooting in 1 second...${Color_Off}" && sleep 1
+    gum style --foreground "red" "ERROR: Drive is not mounted. Rebooting in 3 seconds..." && sleep 1
+    gum style --foreground "red" "Rebooting in 2 seconds..." && sleep 1
+    gum style --foreground "red" "Rebooting in 1 second..." && sleep 1
     reboot now
 fi
 
-echo -e "${BGreen}Installing Arch Linux on Main Drive...${Color_Off}"
+gum style --foreground "green" "Installing Arch Linux on Main Drive..."
 if [[ ! -d "/sys/firmware/efi" ]]; then
     pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
 else
@@ -438,23 +354,23 @@ echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
 cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
 
 genfstab -U /mnt >> /mnt/etc/fstab
-echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
+gum style --foreground "green" "Generated /etc/fstab:"
 cat /mnt/etc/fstab
 
-echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
+gum style --foreground "green" "GRUB Bootloader Installation"
 if [[ ! -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+    gum style --foreground "cyan" "Installing GRUB for BIOS..."
     grub-install --boot-directory=/mnt/boot "${DISK}"
     if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+        gum style --foreground "red" "ERROR: GRUB BIOS installation failed. Exiting."
         exit 1
     fi
 fi
 
-echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
+gum style --foreground "green" "Checking for low memory systems (<8G) for swap file..."
 TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
 if [[ $TOTAL_MEM -lt 8000000 ]]; then
-    echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
+    gum style --foreground "yellow" "System has less than 8GB RAM. Creating a 2GB swap file."
     mkdir -p /mnt/opt/swap
     if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
         chattr +C /mnt/opt/swap
@@ -467,47 +383,33 @@ if [[ $TOTAL_MEM -lt 8000000 ]]; then
     echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
 fi
 
-# Chroot into the new system to continue configuration
 arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
 
 echo "root:${PASSWORD}" | chpasswd
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                        Network Setup
--------------------------------------------------------------------------${Color_Off}
-"
+pacman -S --noconfirm --needed gum
+
+gum style --border normal --margin "1" --padding "1" "Network Setup"
 pacman -S --noconfirm --needed networkmanager dhcpcd
 systemctl enable NetworkManager
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-              Setting up mirrors for optimal download
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "Setting up mirrors for optimal download"
 pacman -S --noconfirm --needed pacman-contrib curl
 pacman -S --noconfirm --needed reflector rsync grub arch-install-scripts git ntp wget
 cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
 
 nc=\$(grep -c ^"cpu cores" /proc/cpuinfo)
 export nc
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                    You have \${nc} cores. And
-              changing the makeflags for \${nc} cores. Aswell as
-                   changing the compression settings.
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "You have \${nc} cores.
+Changing the makeflags for \${nc} cores.
+Changing the compression settings."
+
 TOTAL_MEM=\$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
 if [[ \$TOTAL_MEM -gt 8000000 ]]; then
     sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\${nc}\"/g" /etc/makepkg.conf
     sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \${nc} -z -)/g" /etc/makepkg.conf
 fi
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-              Setup Language to US and set locale
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "Setup Language to US and set locale"
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
 locale-gen
 timedatectl --no-ask-password set-timezone ${TIMEZONE}
@@ -517,7 +419,7 @@ ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 
 echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
 echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
-echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
+gum style --foreground "green" "Keymap set to: ${KEYMAP}"
 
 sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
@@ -529,55 +431,43 @@ sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
 sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
 pacman -Sy --noconfirm --needed
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                     Installing Microcode
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "Installing Microcode"
 if grep -q "GenuineIntel" /proc/cpuinfo; then
-    echo -e "${BGreen}Installing Intel microcode...${Color_Off}"
+    gum style --foreground "green" "Installing Intel microcode..."
     pacman -S --noconfirm --needed intel-ucode
 elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-    echo -e "${BGreen}Installing AMD microcode...${Color_Off}"
+    gum style --foreground "green" "Installing AMD microcode..."
     pacman -S --noconfirm --needed amd-ucode
 else
-    echo -e "${BYellow}Unable to determine CPU vendor. Skipping microcode installation.${Color_Off}"
+    gum style --foreground "yellow" "Unable to determine CPU vendor. Skipping microcode installation."
 fi
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                 Installing Graphics Drivers
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "Installing Graphics Drivers"
 if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
-    echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
+    gum style --foreground "green" "Installing NVIDIA drivers: nvidia-lts..."
     pacman -S --noconfirm --needed nvidia-lts
 elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
-    echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
+    gum style --foreground "green" "Installing AMD drivers: xf86-video-amdgpu..."
     pacman -S --noconfirm --needed xf86-video-amdgpu
 elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
-    echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
+    gum style --foreground "green" "Installing Intel drivers..."
     pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
 else
-    echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
+    gum style --foreground "yellow" "Unable to determine GPU vendor. Skipping graphics driver installation."
 fi
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-    Adding User & fast-hyprland scipt
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "Adding User & fast-hyprland script"
 groupadd libvirt
 useradd -m -G wheel,libvirt -s /bin/bash $USERNAME
-echo -e "${BGreen}User '$USERNAME' created, added to 'wheel' and 'libvirt' groups.${Color_Off}"
+gum style --foreground "green" "User '$USERNAME' created, added to 'wheel' and 'libvirt' groups."
 echo "$USERNAME:$PASSWORD" | chpasswd
-echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
+gum style --foreground "green" "Password for '$USERNAME' has been set."
 echo $NAME_OF_MACHINE > /etc/hostname
-echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
+gum style --foreground "green" "Hostname set to '$NAME_OF_MACHINE'."
 
-echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
+gum style --foreground "green" "Pulling Dots installer transfer to /home/$USERNAME/"
 wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
-echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
+gum style --foreground "green" "changing permission Dots installer script."
 cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
 
 if [[ ${FS} == "luks" ]]; then
@@ -585,81 +475,57 @@ if [[ ${FS} == "luks" ]]; then
     mkinitcpio -p linux-lts
 fi
 
-echo -ne "
-${BCyan}-------------------------------------------------------------------------
-     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
-    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
-    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
-    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
-    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
-    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
--------------------------------------------------------------------------
-${BYellow}                 Automated Arch Linux Installer${Color_Off}
-${BCyan}-------------------------------------------------------------------------${Color_Off}
-
-${BGreen}Final Setup and Configurations
-GRUB EFI Bootloader Install & Check${Color_Off}"
+gum style --border normal --margin "1" --padding "1 2" --border-foreground 212 "
+Final Setup and Configurations
+GRUB EFI Bootloader Install & Check"
 
 if [[ -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+    gum style --foreground "cyan" "Installing GRUB for EFI..."
     grub-install --efi-directory=/boot "${DISK}"
     if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+        gum style --foreground "red" "ERROR: GRUB EFI installation failed. Exiting."
         exit 1
     fi
 fi
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                   Creating Grub Boot Menu
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "Creating Grub Boot Menu"
 if [[ "${FS}" == "luks" ]]; then
     sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
 fi
 sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
 
-echo -e "${BGreen}Updating grub...${Color_Off}"
+gum style --foreground "green" "Updating grub..."
 grub-mkconfig -o /boot/grub/grub.cfg
 if [ $? -ne 0 ]; then
-    echo -e "${BRed}ERROR: Failed to create grub.cfg. Exiting.${Color_Off}"
+    gum style --foreground "red" "ERROR: Failed to create grub.cfg. Exiting."
     exit 1
 fi
 
-echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
+gum style --foreground "green" "Verifying grub configuration..."
 if [ ! -f /boot/grub/grub.cfg ]; then
-    echo -e "${BRed}ERROR: grub.cfg was not created. Exiting.${Color_Off}"
+    gum style --foreground "red" "ERROR: grub.cfg was not created. Exiting."
     exit 1
 fi
 if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
-    echo -e "${BRed}ERROR: grub.cfg does not contain an Arch Linux entry. Exiting.${Color_Off}"
+    gum style --foreground "red" "ERROR: grub.cfg does not contain an Arch Linux entry. Exiting."
     exit 1
 fi
-echo -e "${BGreen}Grub configuration complete!${Color_Off}"
+gum style --foreground "green" "Grub configuration complete!"
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                   Enabling Essential Services
--------------------------------------------------------------------------${Color_Off}
-"
+gum style --border normal --margin "1" --padding "1" "Enabling Essential Services"
 ntpd -qg
 systemctl enable ntpd.service
-echo -e "${BGreen}  NTP enabled.${Color_Off}"
+gum style --foreground "green" "  NTP enabled."
 systemctl disable dhcpcd.service
-echo -e "${BGreen}  DHCP disabled.${Color_Off}"
+gum style --foreground "green" "  DHCP disabled."
 systemctl start NetworkManager.service
-echo -e "${BGreen}  NetworkManager started.${Color_Off}"
+gum style --foreground "green" "  NetworkManager started."
 systemctl enable NetworkManager.service
-echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
+gum style --foreground "green" "  NetworkManager enabled."
 systemctl enable reflector.timer
-echo -e "${BGreen}  Reflector enabled.${Color_Off}"
+gum style --foreground "green" "  Reflector enabled."
 
-echo -ne "
-${BGreen}-------------------------------------------------------------------------
-                          Cleaning
--------------------------------------------------------------------------${Color_Off}
-"
-# Reverting temporary sudoers changes for security
+gum style --border normal --margin "1" --padding "1" "Cleaning"
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
