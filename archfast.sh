@@ -300,7 +300,8 @@ main_installation_process() {
     sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
     pacman -S --noconfirm --needed reflector rsync grub
     cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-    echo -e "${BCyan}-------------------------------------------------------------------------
+    echo -en "
+"${BCyan}-------------------------------------------------------------------------
         Setting up $iso mirrors for faster downloads
 -------------------------------------------------------------------------${Color_Off}"
     reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
@@ -668,5 +669,3 @@ else
     echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
 fi
-
-EOF
