@@ -150,11 +150,12 @@ def setup_colors():
     """Initializes color pairs for the TUI."""
     if curses.has_colors():
         curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        curses.init_pair(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
-        curses.init_pair(5, curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_CYAN, -1)
+        curses.init_pair(2, curses.COLOR_YELLOW, -1)
+        curses.init_pair(3, curses.COLOR_GREEN, -1)
+        curses.init_pair(4, curses.COLOR_RED, -1)
+        curses.init_pair(5, curses.COLOR_WHITE, -1)
         curses.init_pair(6, curses.COLOR_BLACK, curses.COLOR_YELLOW)
 
 def get_input(stdscr, y, x, prompt_string):
@@ -176,18 +177,21 @@ def get_password(stdscr, y, x, prompt_string):
     curses.curs_set(1)
     password = b""
     while True:
-        ch = stdscr.getch()
-        if ch == 10:  # Enter key
-            break
-        elif ch in [curses.KEY_BACKSPACE, 127, 8]: # Backspace
-            if len(password) > 0:
-                password = password[:-1]
-                h, w = stdscr.getyx()
-                stdscr.move(h, w - 1)
-                stdscr.delch()
-        elif 32 <= ch <= 126: # Regular character
-            password += bytes([ch])
-            stdscr.addch('*')
+        try:
+            ch = stdscr.getch()
+            if ch == 10:  # Enter key
+                break
+            elif ch in [curses.KEY_BACKSPACE, 127, 8]: # Backspace
+                if len(password) > 0:
+                    h, w = stdscr.getyx()
+                    stdscr.move(h, w - 1)
+                    stdscr.delch()
+                    password = password[:-1]
+            elif 32 <= ch <= 126: # Regular character
+                password += bytes([ch])
+                stdscr.addch('*')
+        except KeyboardInterrupt:
+             sys.exit(1)
     curses.curs_set(0)
     return password.decode('utf-8')
 
@@ -200,18 +204,23 @@ def display_menu(stdscr, title, options):
         stdscr.clear()
         h, w = stdscr.getmaxyx()
         
-        title_x = w // 2 - len(title) // 2
-        stdscr.addstr(2, title_x, title, curses.A_BOLD)
+        title_y = 2
+        for i, line in enumerate(title.split('\n')):
+            title_x = w // 2 - len(line) // 2
+            stdscr.addstr(title_y + i, title_x, line, curses.A_BOLD)
 
         for i, option in enumerate(options):
             opt_x = w // 2 - len(option) // 2
             if i == selected_idx:
-                stdscr.addstr(4 + i, opt_x, f"> {option} <", curses.A_REVERSE)
+                stdscr.addstr(title_y + len(title.split('\n')) + 2 + i, opt_x, f"> {option} <", curses.A_REVERSE)
             else:
-                stdscr.addstr(4 + i, opt_x, f"  {option}  ")
+                stdscr.addstr(title_y + len(title.split('\n')) + 2 + i, opt_x, f"  {option}  ")
         
         stdscr.refresh()
-        key = stdscr.getch()
+        try:
+            key = stdscr.getch()
+        except KeyboardInterrupt:
+            sys.exit(1)
 
         if key == curses.KEY_UP:
             selected_idx = (selected_idx - 1) % len(options)
@@ -225,20 +234,29 @@ def display_menu(stdscr, title, options):
 def userinfo(stdscr):
     """Gathers username, password, and hostname."""
     setup_colors()
-    username = get_input(stdscr, 2, 2, "Enter a username for your new system:")
+    username = ""
+    password = ""
+    hostname = ""
+    while not username:
+        username = get_input(stdscr, 2, 2, "Enter a username for your new system:")
+    
     while True:
-        password = get_password(stdscr, 5, 2, "Enter password:")
-        password2 = get_password(stdscr, 8, 2, "Re-enter password:")
+        stdscr.clear()
+        stdscr.addstr(2, 2, f"Username: {username}")
+        password = get_password(stdscr, 4, 2, "Enter password:")
+        password2 = get_password(stdscr, 7, 2, "Re-enter password:")
         if password == password2 and password != "":
             break
         else:
-            stdscr.addstr(11, 2, "Passwords do not match or are empty. Please try again.", curses.color_pair(4))
+            stdscr.addstr(10, 2, "Passwords do not match or are empty. Press any key to try again.", curses.color_pair(4))
             stdscr.getch()
-            stdscr.clear()
-            stdscr.addstr(2, 2, "Enter a username for your new system:")
-            stdscr.addstr(3, 2, username)
 
-    hostname = get_input(stdscr, 11, 2, "Please name your machine (hostname):")
+    while not hostname:
+        stdscr.clear()
+        stdscr.addstr(2, 2, f"Username: {username}")
+        stdscr.addstr(4, 2, "Password: [set]")
+        hostname = get_input(stdscr, 7, 2, "Please name your machine (hostname):")
+
     print(f"{username}\n{password}\n{hostname}")
 
 def diskpart(stdscr):
@@ -285,14 +303,16 @@ def timezone(stdscr):
     setup_colors()
     try:
         detected_timezone = subprocess.check_output("curl --fail https://ipapi.co/timezone", shell=True).decode('utf-8').strip()
-        confirm = display_menu(stdscr, f"System detected your timezone to be '{detected_timezone}'. Is this correct?", ["Yes", "No"])
+        confirm = display_menu(stdscr, f"System detected your timezone to be '{detected_timezone}'.\nIs this correct?", ["Yes", "No"])
         if confirm == "Yes":
             print(detected_timezone)
             return
     except subprocess.CalledProcessError:
         pass
     stdscr.clear()
-    new_timezone = get_input(stdscr, 5, 2, "Enter your desired timezone (e.g., Europe/London):")
+    new_timezone = ""
+    while not new_timezone:
+        new_timezone = get_input(stdscr, 5, 2, "Enter your desired timezone (e.g., Europe/London):")
     print(new_timezone)
 
 def keymap(stdscr):
@@ -302,7 +322,7 @@ def keymap(stdscr):
     keymap_choice = display_menu(stdscr, "Select a common keyboard layout:", common_layouts)
 
     if keymap_choice == "More...":
-        all_layouts_cmd = "find /usr/share/kbd/keymaps/ -name '*.map.gz' -printf '%f\n' | sed 's/\.map\.gz$//' | sort"
+        all_layouts_cmd = r"find /usr/share/kbd/keymaps/ -name '*.map.gz' -printf '%f\n' | sed 's/\.map\.gz$//' | sort"
         all_layouts = subprocess.check_output(all_layouts_cmd, shell=True).decode('utf-8').strip().split('\n')
         keymap_choice = display_menu(stdscr, "Select your keyboard layout:", all_layouts)
 
@@ -311,7 +331,7 @@ def keymap(stdscr):
 def confirm_installation(stdscr):
     """Asks the user to confirm the installation."""
     setup_colors()
-    answer = display_menu(stdscr, "Are you ready to begin the installation? All data on the selected disk will be erased.", ["Yes", "No"])
+    answer = display_menu(stdscr, "Are you ready to begin the installation?\nAll data on the selected disk will be erased.", ["Yes", "No"])
     if answer == "Yes":
         print("yes")
     else:
@@ -337,10 +357,11 @@ def main(stdscr):
 if __name__ == '__main__':
     try:
         curses.wrapper(main)
-    except curses.error as e:
-        print(f"Curses error: {e}")
-        if 'TERM' not in os.environ:
-            print("Terminal not defined. This script requires an interactive terminal.")
+    except KeyboardInterrupt:
+        print("Installation canceled by user.")
+        sys.exit(1)
+    except Exception:
+        # If curses fails for any reason, exit gracefully.
         sys.exit(1)
 
 EOF
@@ -357,7 +378,16 @@ userinfo () {
     
     create_tui_script
 
-    IFS=$'\n' read -r USERNAME PASSWORD NAME_OF_MACHINE < <(./tui.py userinfo)
+    USER_DATA=$(./tui.py userinfo)
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
+        exit 1
+    fi
+
+    USERNAME=$(echo "$USER_DATA" | sed -n 1p)
+    PASSWORD=$(echo "$USER_DATA" | sed -n 2p)
+    NAME_OF_MACHINE=$(echo "$USER_DATA" | sed -n 3p)
+
     if [ -z "$USERNAME" ] || [ -z "$PASSWORD" ] || [ -z "$NAME_OF_MACHINE" ]; then
         echo -e "${BRed}User canceled or provided empty input. Exiting.${Color_Off}"
         exit 1
@@ -366,18 +396,32 @@ userinfo () {
 }
 
 diskpart () {
-    IFS=$'\n' read -r DISK MOUNT_OPTIONS < <(./tui.py diskpart)
+    DISK_DATA=$(./tui.py diskpart)
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
+        exit 1
+    fi
+    DISK=$(echo "$DISK_DATA" | sed -n 1p)
+    MOUNT_OPTIONS=$(echo "$DISK_DATA" | sed -n 2p)
+
     if [ -z "$DISK" ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+        echo -e "${BRed}No disk selected. Exiting.${Color_Off}"
         exit 1
     fi
     export DISK MOUNT_OPTIONS
 }
 
 filesystem () {
-    IFS=$'\n' read -r FS LUKS_PASSWORD < <(./tui.py filesystem)
+    FS_DATA=$(./tui.py filesystem)
+     if [ $? -ne 0 ]; then
+        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
+        exit 1
+    fi
+    FS=$(echo "$FS_DATA" | sed -n 1p)
+    LUKS_PASSWORD=$(echo "$FS_DATA" | sed -n 2p)
+
     if [ -z "$FS" ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+        echo -e "${BRed}No filesystem selected. Exiting.${Color_Off}"
         exit 1
     fi
     export FS LUKS_PASSWORD
@@ -385,8 +429,8 @@ filesystem () {
 
 timezone () {
     TIMEZONE=$(./tui.py timezone)
-    if [ -z "$TIMEZONE" ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+    if [ $? -ne 0 ] || [ -z "$TIMEZONE" ]; then
+        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
         exit 1
     fi
     export TIMEZONE
@@ -394,8 +438,8 @@ timezone () {
 
 keymap () {
     KEYMAP=$(./tui.py keymap)
-    if [ -z "$KEYMAP" ]; then
-        echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+    if [ $? -ne 0 ] || [ -z "$KEYMAP" ]; then
+        echo -e "${BRed}User canceled or an error occurred. Exiting.${Color_Off}"
         exit 1
     fi
     echo -e "${BGreen}Keyboard layout set to: ${KEYMAP}${Color_Off}"
@@ -700,7 +744,7 @@ chown $USERNAME:$USERNAME /home/$USERNAME/fast-hyprland.sh
 chmod +x /home/$USERNAME/fast-hyprland.sh
 
 if [[ ${FS} == "luks" ]]; then
-    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+    sed -i 's/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block filesystems fsck)/HOOKS=(base udev autodetect modconf kms keyboard keymap consolefont block encrypt filesystems fsck)/' /etc/mkinitcpio.conf
 fi
 mkinitcpio -p linux-lts
 
