@@ -661,12 +661,9 @@ user_packages
 if (whiptail --title "Installation Confirmation" --yesno "All user input is collected. The installation will now run in the background. Are you ready to proceed? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
     clear
     logo
-    echo -e "${BYellow}The Arch Linux installation is now running in the background. Grab your coffee and chill!${Color_Off}"
-    echo -e "${BYellow}You can check the progress in the 'archsetup.txt' log file.${Color_Off}"
-    echo -e "${BYellow}This script will automatically reboot the system once it is finished.${Color_Off}"
-    
     main_installation_process &
-    sleep 2
+    
+    whiptail --title "Installation in Progress" --msgbox "The Arch Linux installation is now running in the background. Grab your coffee and chill!\n\nYou can check the progress in the 'archsetup.txt' log file.\n\nThis script will automatically reboot the system once it is finished." 15 70
 else
     echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
