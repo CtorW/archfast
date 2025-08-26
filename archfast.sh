@@ -638,7 +638,7 @@ ${BGreen}-----------------------------------------------------------------------
     sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
     sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
-    EOF
+EOF
 }
 
 # Run initial checks before starting
