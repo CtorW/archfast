@@ -67,11 +67,29 @@ else
     BIWhite="\033[1;97m"
 fi
 
-# ==============================================================================
-#             Initial System Checks
-# ==============================================================================
+# Redirect all output to a log file
+exec > >(tee -i archsetup.txt)
+exec 2>&1
 
-# Check if the script is run from an Arch Linux ISO environment
+# ==============================================================================
+#                          Initial System Checks
+# ==============================================================================
+logo() {
+ clear
+ echo -en "
+${BCyan}-------------------------------------------------------------------------
+     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
+    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
+    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
+    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
+    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
+-------------------------------------------------------------------------
+${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BCyan}-------------------------------------------------------------------------${Color_Off}
+"
+}
+
 if [ ! -f /usr/bin/pacstrap ]; then
     echo -e "${BRed}ERROR: This script must be run from an Arch Linux ISO environment. Exiting.${Color_Off}"
     exit 1
@@ -117,12 +135,12 @@ background_checks() {
 }
 
 # ==============================================================================
-#             Interactive Prompts (using Whiptail TUI)
+#                          Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
-    # Install whiptail and dialog if they're not already installed
-    echo -e "${BGreen}Checking for whiptail and dialog...${Color_Off}"
-    pacman -S --noconfirm --needed whiptail dialog
+    # Install whiptail if it's not already installed
+    echo -e "${BGreen}Checking for whiptail...${Color_Off}"
+    pacman -S --noconfirm --needed whiptail
     
     # Prompt for username
     USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
@@ -213,7 +231,7 @@ filesystem () {
 }
 
 timezone () {
-    TIME_ZONE=$(curl --fail https://ipapi.co/timezone 2>/dev/null)
+    TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
     if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
         # If curl is successful and returns a value, ask for confirmation.
         if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
@@ -262,381 +280,13 @@ keymap () {
     export KEYMAP="${keymap_choice}"
 }
 
-user_packages () {
-    USER_PACKAGES=$(whiptail --title "Optional Packages" --inputbox "Enter a space-separated list of packages to install (e.g., gnome firefox htop). Press Enter to skip:" 10 60 "" 3>&1 1>&2 2>&3)
-    export USER_PACKAGES
-}
-
 # ==============================================================================
-#                 Main Installation Workflow
+#                             Main Installation Workflow
 # ==============================================================================
-main_installation_process() {
-    echo -e "${BYellow}Starting the installation process...${Color_Off}"
-    echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
-    
-    # Check if curl is installed before attempting to use it
-    if ! command -v curl &> /dev/null; then
-        echo -e "${BYellow}curl not found. Installing now.${Color_Off}"
-        pacman -S --noconfirm --needed curl
-    fi
-
-    iso=$(curl -4 ifconfig.io/country_code)
-    timedatectl set-ntp true
-    pacman -Sy
-    pacman -S --noconfirm archlinux-keyring
-    pacman -S --noconfirm --needed pacman-contrib terminus-font
-    setfont ter-v18b
-    sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-    pacman -S --noconfirm --needed reflector rsync grub lspci
-    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
-    echo -e "${BCyan}-------------------------------------------------------------------------
-        Setting up $iso mirrors for faster downloads
--------------------------------------------------------------------------${Color_Off}"
-    reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
-    if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-        echo -e "${BRed}Warning: Reflector failed. Restoring original mirrorlist.${Color_Off}"
-        cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
-    fi
-
-    if [ ! -d "/mnt" ]; then
-        mkdir /mnt
-    fi
-
-    echo -e "${BGreen}Installing Prerequisites...${Color_Off}"
-    pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
-
-    echo -e "${BGreen}Formatting Disk...${Color_Off}"
-    umount -A --recursive /mnt
-    sgdisk -Z "${DISK}"
-    sgdisk -a 2048 -o "${DISK}"
-
-    # Partitioning logic for BIOS and EFI systems
-    if [[ ! -d "/sys/firmware/efi" ]]; then
-        # BIOS/Legacy system
-        sgdisk -n 1:2048:+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
-        sgdisk -n 2:0:+1G --typecode=2:8300 --change-name=2:'SWAP' "${DISK}" # Placeholder for swap, will be a file later
-        sgdisk -n 3:0:0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
-        partition2=${DISK}2
-        partition3=${DISK}3
-    else
-        # EFI system
-        sgdisk -n 1::+1GiB --typecode=1:ef00 --change-name=1:'EFIBOOT' "${DISK}"
-        sgdisk -n 2::+1G --typecode=2:8300 --change-name=2:'SWAP' "${DISK}" # Placeholder for swap, will be a file later
-        sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
-        if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
-            partition1=${DISK}p1
-            partition2=${DISK}p2
-            partition3=${DISK}p3
-        else
-            partition1=${DISK}1
-            partition2=${DISK}2
-            partition3=${DISK}3
-        fi
-    fi
-
-    partprobe "${DISK}"
-
-    echo -e "${BGreen}Creating Filesystems...${Color_Off}"
-    createsubvolumes () {
-        btrfs subvolume create /mnt/@
-        btrfs subvolume create /mnt/@home
-    }
-
-    mountallsubvol () {
-        mount -o "${MOUNT_OPTIONS}",subvol=@home "${partition3}" /mnt/home
-    }
-
-    subvolumesetup () {
-        createsubvolumes
-        umount /mnt
-        mount -o "${MOUNT_OPTIONS}",subvol=@ "${partition3}" /mnt
-        mkdir -p /mnt/home
-        mountallsubvol
-    }
-
-    if [[ "${FS}" == "btrfs" ]]; then
-        if [[ -d "/sys/firmware/efi" ]]; then
-            mkfs.fat -F32 -n "EFIBOOT" "${partition1}"
-        fi
-        mkfs.btrfs -f "${partition3}"
-        mount -t btrfs "${partition3}" /mnt
-        subvolumesetup
-    elif [[ "${FS}" == "ext4" ]]; then
-        if [[ -d "/sys/firmware/efi" ]]; then
-            mkfs.fat -F32 -n "EFIBOOT" "${partition1}"
-        fi
-        mkfs.ext4 "${partition3}"
-        mount -t ext4 "${partition3}" /mnt
-    elif [[ "${FS}" == "luks" ]]; then
-        if [[ -d "/sys/firmware/efi" ]]; then
-            mkfs.fat -F32 "${partition1}"
-        fi
-        echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
-        echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-        mkfs.btrfs "${partition3}"
-        mount -t btrfs "${partition3}" /mnt
-        subvolumesetup
-        ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
-    fi
-
-    sync
-    if ! mountpoint -q /mnt; then
-        echo -e "${BRed}ERROR: Failed to mount ${partition3} to /mnt. Exiting.${Color_Off}"
-        exit 1
-    fi
-
-    # Mount the boot partition
-    if [[ -d "/sys/firmware/efi" ]]; then
-        mkdir -p /mnt/boot
-        mount "${partition1}" /mnt/boot
-    fi
-    
-    if ! grep -qs '/mnt' /proc/mounts; then
-        echo -e "${BRed}ERROR: Drive is not mounted. Rebooting in 3 seconds...${Color_Off}" && sleep 1
-        echo -e "${BRed}Rebooting in 2 seconds...${Color_Off}" && sleep 1
-        echo -e "${BRed}Rebooting in 1 second...${Color_Off}" && sleep 1
-        reboot now
-    fi
-
-    echo -e "${BGreen}Installing Arch Linux on Main Drive...${Color_Off}"
-    
-    # Detect GPU and add `pciutils` to install it correctly later
-    GPU_TYPE=$(lspci | grep -i VGA)
-    if [[ -d "/sys/firmware/efi" ]]; then
-        pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr grub pciutils --noconfirm --needed
-    else
-        pacstrap /mnt base base-devel linux-lts linux-firmware grub pciutils --noconfirm --needed
-    fi
-
-    echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
-    cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
-
-    genfstab -U /mnt >> /mnt/etc/fstab
-    echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
-    cat /mnt/etc/fstab
-
-    # Create swap file if memory is low
-    echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
-    TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-    if [[ $TOTAL_MEM -lt 8000000 ]]; then
-        echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
-        mkdir -p /mnt/opt/swap
-        if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
-            chattr +C /mnt/opt/swap
-        fi
-        dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
-        chmod 600 /mnt/opt/swap/swapfile
-        chown root /mnt/opt/swap/swapfile
-        mkswap /mnt/opt/swap/swapfile
-        swapon /mnt/opt/swap/swapfile
-        echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
-    fi
-
-    echo -e "${BGreen}Installing GRUB Bootloader...${Color_Off}"
-    if [[ -d "/sys/firmware/efi" ]]; then
-        # UEFI
-        grub-install --target=x86_64-efi --efi-directory=/mnt/boot --bootloader-id=grub --removable
-    else
-        # BIOS
-        grub-install --target=i386-pc "${DISK}"
-    fi
-
-arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' USER_PACKAGES='${USER_PACKAGES}' GPU_TYPE='${GPU_TYPE}' /bin/bash" <<EOF
-    echo "root:${PASSWORD}" | chpasswd
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-        Network Setup
--------------------------------------------------------------------------${Color_Off}
-"
-    pacman -S --noconfirm --needed networkmanager dhcpcd
-    systemctl enable NetworkManager
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-        Setting up mirrors for optimal download
--------------------------------------------------------------------------${Color_Off}
-"
-    pacman -S --noconfirm --needed pacman-contrib curl
-    pacman -S --noconfirm --needed reflector rsync grub arch-install-scripts git ntp wget
-    cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
-
-    # Using backticks for command substitution is a more classic approach that works well in here documents.
-    nc=$(grep -c ^"cpu cores" /proc/cpuinfo)
-    export nc
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-        You have \${nc} cores. And
-    changing the makeflags for \${nc} cores. Aswell as
-    changing the compression settings.
--------------------------------------------------------------------------${Color_Off}
-"
-    TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-    if [[ \$TOTAL_MEM -gt 8000000 ]]; then
-        sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\${nc}\"/g" /etc/makepkg.conf
-        sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \${nc} -z -)/g" /etc/makepkg.conf
-    fi
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-        Setup Language to US and set locale
--------------------------------------------------------------------------${Color_Off}
-"
-    sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
-    locale-gen
-    timedatectl --no-ask-password set-timezone ${TIMEZONE}
-    timedatectl --no-ask-password set-ntp 1
-    localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
-    ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
-
-    echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
-    echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
-    echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
-
-    sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
-    sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-
-    sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
-
-    sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
-
-    sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
-    pacman -Sy --noconfirm --needed
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-          Installing Microcode
--------------------------------------------------------------------------${Color_Off}
-"
-    if grep -q "GenuineIntel" /proc/cpuinfo; then
-        echo -e "${BGreen}Installing Intel microcode...${Color_Off}"
-        pacman -S --noconfirm --needed intel-ucode
-    elif grep -q "AuthenticAMD" /proc/cpuinfo; then
-        echo -e "${BGreen}Installing AMD microcode...${Color_Off}"
-        pacman -S --noconfirm --needed amd-ucode
-    else
-        echo -e "${BYellow}Unable to determine CPU vendor. Skipping microcode installation.${Color_Off}"
-    fi
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-          Installing Graphics Drivers
--------------------------------------------------------------------------${Color_Off}
-"
-    if echo "${GPU_TYPE}" | grep -E "NVIDIA|GeForce"; then
-        echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
-        pacman -S --noconfirm --needed nvidia-lts
-    elif echo "${GPU_TYPE}" | grep 'VGA' | grep -E "Radeon|AMD"; then
-        echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
-        pacman -S --noconfirm --needed xf86-video-amdgpu
-    elif echo "${GPU_TYPE}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
-        echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
-        pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
-    else
-        echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
-    fi
-
-    # ==============================================================================
-    #                 User Package Installation Section
-    # ==============================================================================
-    if [[ -n "${USER_PACKAGES}" ]]; then
-        echo -ne "
-${BGreen}-------------------------------------------------------------------------
-    Installing user-defined packages
--------------------------------------------------------------------------${Color_Off}
-"
-        pacman -S --noconfirm --needed ${USER_PACKAGES}
-    fi
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-    Adding User & fast-hyprland scipt
--------------------------------------------------------------------------${Color_Off}
-"
-    groupadd libvirt
-    useradd -m -G wheel,libvirt -s /bin/bash $USERNAME
-    echo -e "${BGreen}User '$USERNAME' created, added to 'wheel' and 'libvirt' groups.${Color_Off}"
-    echo "$USERNAME:$PASSWORD" | chpasswd
-    echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
-    echo $NAME_OF_MACHINE > /etc/hostname
-    echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
-
-    echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
-    wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
-    echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
-    cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
-
-    if [[ ${FS} == "luks" ]]; then
-        sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-        mkinitcpio -p linux-lts
-    fi
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-        Creating Grub Boot Menu
--------------------------------------------------------------------------${Color_Off}
-"
-    if [[ "${FS}" == "luks" ]]; then
-        sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
-    fi
-    sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
-
-    echo -e "${BGreen}Updating grub...${Color_Off}"
-    grub-mkconfig -o /boot/grub/grub.cfg
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: Failed to create grub.cfg. Exiting.${Color_Off}"
-        exit 1
-    fi
-
-    echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
-    if [ ! -f /boot/grub/grub.cfg ]; then
-        echo -e "${BRed}ERROR: grub.cfg was not created. Exiting.${Color_Off}"
-        exit 1
-    fi
-    if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
-        echo -e "${BRed}ERROR: grub.cfg does not contain an Arch Linux entry. Exiting.${Color_Off}"
-        exit 1
-    fi
-    echo -e "${BGreen}Grub configuration complete!${Color_Off}"
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-        Enabling Essential Services
--------------------------------------------------------------------------${Color_Off}
-"
-    ntpd -qg
-    systemctl enable ntpd.service
-    echo -e "${BGreen}  NTP enabled.${Color_Off}"
-    systemctl disable dhcpcd.service
-    echo -e "${BGreen}  DHCP disabled.${Color_Off}"
-    systemctl start NetworkManager.service
-    echo -e "${BGreen}  NetworkManager started.${Color_Off}"
-    systemctl enable NetworkManager.service
-    echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
-    systemctl enable reflector.timer
-    echo -e "${BGreen}  Reflector enabled.${Color_Off}"
-
-    echo -ne "
-${BGreen}-------------------------------------------------------------------------
-        Cleaning
--------------------------------------------------------------------------${Color_Off}
-"
-    # Reverting temporary sudoers changes for security
-    sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
-    sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
-    sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
-
-EOF
-    
-    # Final message after the chroot has completed
-    echo -e "${BGreen}Installation process finished! A log file 'archsetup.txt' has been created in your current directory.${Color_Off}"
-    echo -e "${BGreen}Press Enter to reboot your system into the new installation.${Color_Off}"
-    read -rp ""
-    reboot now
-}
 
 # Run initial checks before starting
-clear
 background_checks
+clear
 userinfo
 clear
 diskpart
@@ -646,25 +296,372 @@ clear
 timezone
 clear
 keymap
-clear
-user_packages
 
-# Installation Confirmation before starting the background process
-if (whiptail --title "Installation Confirmation" --yesno "All user input is collected. The installation will now begin. A log file will be displayed in real-time.\n\nAre you ready to proceed? All data on the selected disk will be erased." 15 70 3>&1 1>&2 2>&3); then
-    clear
-    
-    # Run installation and tee the output to a log file
-    (main_installation_process 2>&1 | tee archsetup.txt) &
-    # Get the process ID of the background task
-    bg_pid=$!
-    
-    # Use dialog to show the log file in real-time
-    dialog --title "Arch Linux Installation Log" --no-cancel --tailbox archsetup.txt 25 80
-    
-    # Wait for the background process to finish before exiting the script
-    wait $bg_pid
-    
+if (whiptail --title "Installation Confirmation" --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
+     echo -en "
+${BCyan}-------------------------------------------------------------------------
+██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
+██╔══██╗██║   ██║████╗  ██║████╗  ██║██║████╗  ██║██╔════╝               
+██████╔╝██║   ██║██╔██╗ ██║██╔██╗ ██║██║██╔██╗ ██║██║  ███╗              
+██╔══██╗██║   ██║██║╚██╗██║██║╚██╗██║██║██║╚██╗██║██║   ██║              
+██║  ██║╚██████╔╝██║ ╚████║██║ ╚████║██║██║ ╚████║╚██████╔╝██╗██╗██╗     
+╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝  ╚═══╝╚═╝╚═╝  ╚═══╝ ╚═════╝ ╚═╝╚═╝╚═╝     
+                                                                         
+ ██████╗ ██████╗ ██╗   ██╗██████╗     ██╗   ██╗ ██████╗ ██╗   ██╗██████╗ 
+██╔════╝ ██╔══██╗██║   ██║██╔══██╗    ╚██╗ ██╔╝██╔═══██╗██║   ██║██╔══██╗
+██║  ███╗██████╔╝██║   ██║██████╔╝     ╚████╔╝ ██║   ██║██║   ██║██████╔╝
+██║   ██║██╔══██╗██║   ██║██╔══██╗      ╚██╔╝  ██║   ██║██║   ██║██╔══██╗
+╚██████╔╝██║  ██║╚██████╔╝██████╔╝       ██║   ╚██████╔╝╚██████╔╝██║  ██║
+ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚═════╝        ╚═╝    ╚═════╝  ╚═════╝ ╚═╝  ╚═╝
+                                                                         
+ ██████╗ ██████╗ ███████╗███████╗███████╗███████╗                        
+██╔════╝██╔═══██╗██╔════╝██╔════╝██╔════╝██╔════╝                        
+██║     ██║   ██║█████╗  █████╗  █████╗  █████╗                          
+██║     ██║   ██║██╔══╝  ██╔══╝  ██╔══╝  ██╔══╝                          
+╚██████╗╚██████╔╝██║     ██║     ███████╗███████╗                        
+ ╚═════╝ ╚═════╝ ╚═╝     ╚═╝     ╚══════╝╚══════╝                        
+-------------------------------------------------------------------------${Color_Off}
+"
 else
     echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
     exit 1
 fi
+
+echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
+iso=$(curl -4 ifconfig.io/country_code)
+timedatectl set-ntp true
+pacman -Sy
+pacman -S --noconfirm archlinux-keyring
+pacman -S --noconfirm --needed pacman-contrib terminus-font
+setfont ter-v18b
+sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+pacman -S --noconfirm --needed reflector rsync grub
+cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
+echo -e "${BCyan}-------------------------------------------------------------------------
+              Setting up $iso mirrors for faster downloads
+-------------------------------------------------------------------------${Color_Off}"
+reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
+if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
+    echo -e "${BRed}Warning: Reflector failed. Restoring original mirrorlist.${Color_Off}"
+    cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
+fi
+
+if [ ! -d "/mnt" ]; then
+    mkdir /mnt
+fi
+
+echo -e "${BGreen}Installing Prerequisites...${Color_Off}"
+pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
+
+echo -e "${BGreen}Formatting Disk...${Color_Off}"
+umount -A --recursive /mnt
+sgdisk -Z "${DISK}"
+sgdisk -a 2048 -o "${DISK}"
+
+sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
+sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
+sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
+if [[ ! -d "/sys/firmware/efi" ]]; then
+    sgdisk -A 1:set:2 "${DISK}"
+fi
+partprobe "${DISK}"
+
+echo -e "${BGreen}Creating Filesystems...${Color_Off}"
+createsubvolumes () {
+    btrfs subvolume create /mnt/@
+    btrfs subvolume create /mnt/@home
+}
+
+mountallsubvol () {
+    mount -o "${MOUNT_OPTIONS}",subvol=@home "${partition3}" /mnt/home
+}
+
+subvolumesetup () {
+    createsubvolumes
+    umount /mnt
+    mount -o "${MOUNT_OPTIONS}",subvol=@ "${partition3}" /mnt
+    mkdir -p /mnt/home
+    mountallsubvol
+}
+
+if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
+    partition2=${DISK}p2
+    partition3=${DISK}p3
+else
+    partition2=${DISK}2
+    partition3=${DISK}3
+fi
+
+if [[ "${FS}" == "btrfs" ]]; then
+    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
+    mkfs.btrfs -f "${partition3}"
+    mount -t btrfs "${partition3}" /mnt
+    subvolumesetup
+elif [[ "${FS}" == "ext4" ]]; then
+    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
+    mkfs.ext4 "${partition3}"
+    mount -t ext4 "${partition3}" /mnt
+elif [[ "${FS}" == "luks" ]]; then
+    mkfs.fat -F32 "${partition2}"
+    echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
+    echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
+    mkfs.btrfs "${partition3}"
+    mount -t btrfs "${partition3}" /mnt
+    subvolumesetup
+    ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
+fi
+
+BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
+
+sync
+if ! mountpoint -q /mnt; then
+    echo -e "${BRed}ERROR: Failed to mount ${partition3} to /mnt. Exiting.${Color_Off}"
+    exit 1
+fi
+mkdir -p /mnt/boot
+mount -U "${BOOT_UUID}" /mnt/boot/
+
+if ! grep -qs '/mnt' /proc/mounts; then
+    echo -e "${BRed}ERROR: Drive is not mounted. Rebooting in 3 seconds...${Color_Off}" && sleep 1
+    echo -e "${BRed}Rebooting in 2 seconds...${Color_Off}" && sleep 1
+    echo -e "${BRed}Rebooting in 1 second...${Color_Off}" && sleep 1
+    reboot now
+fi
+
+echo -e "${BGreen}Installing Arch Linux on Main Drive...${Color_Off}"
+if [[ ! -d "/sys/firmware/efi" ]]; then
+    pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
+else
+    pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr --noconfirm --needed
+fi
+echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
+cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
+
+genfstab -U /mnt >> /mnt/etc/fstab
+echo -e "\n${BGreen}Generated /etc/fstab:${Color_Off}\n"
+cat /mnt/etc/fstab
+
+echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
+if [[ ! -d "/sys/firmware/efi" ]]; then
+    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+    grub-install --boot-directory=/mnt/boot "${DISK}"
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+        exit 1
+    fi
+fi
+
+echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
+TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+if [[ $TOTAL_MEM -lt 8000000 ]]; then
+    echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
+    mkdir -p /mnt/opt/swap
+    if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
+        chattr +C /mnt/opt/swap
+    fi
+    dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
+    chmod 600 /mnt/opt/swap/swapfile
+    chown root /mnt/opt/swap/swapfile
+    mkswap /mnt/opt/swap/swapfile
+    swapon /mnt/opt/swap/swapfile
+    echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
+fi
+
+# Chroot into the new system to continue configuration
+arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
+
+echo "root:${PASSWORD}" | chpasswd
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                        Network Setup
+-------------------------------------------------------------------------${Color_Off}
+"
+pacman -S --noconfirm --needed networkmanager dhcpcd
+systemctl enable NetworkManager
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+              Setting up mirrors for optimal download
+-------------------------------------------------------------------------${Color_Off}
+"
+pacman -S --noconfirm --needed pacman-contrib curl
+pacman -S --noconfirm --needed reflector rsync grub arch-install-scripts git ntp wget
+cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.bak
+
+nc=\$(grep -c ^"cpu cores" /proc/cpuinfo)
+export nc
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                    You have \${nc} cores. And
+              changing the makeflags for \${nc} cores. Aswell as
+                   changing the compression settings.
+-------------------------------------------------------------------------${Color_Off}
+"
+TOTAL_MEM=\$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+if [[ \$TOTAL_MEM -gt 8000000 ]]; then
+    sed -i "s/#MAKEFLAGS=\"-j2\"/MAKEFLAGS=\"-j\${nc}\"/g" /etc/makepkg.conf
+    sed -i "s/COMPRESSXZ=(xz -c -z -)/COMPRESSXZ=(xz -c -T \${nc} -z -)/g" /etc/makepkg.conf
+fi
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+              Setup Language to US and set locale
+-------------------------------------------------------------------------${Color_Off}
+"
+sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
+locale-gen
+timedatectl --no-ask-password set-timezone ${TIMEZONE}
+timedatectl --no-ask-password set-ntp 1
+localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
+ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+
+echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
+echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
+echo -e "${BGreen}Keymap set to: ${KEYMAP}${Color_Off}"
+
+sed -i 's/^# %wheel ALL=(ALL) NOPASSWD: ALL/%wheel ALL=(ALL) NOPASSWD: ALL/' /etc/sudoers
+sed -i 's/^# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/%wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+
+sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
+
+sed -i 's/^#Color/Color\nILoveCandy/' /etc/pacman.conf
+
+sed -i "/\[multilib\]/,/Include/"'s/^#//' /etc/pacman.conf
+pacman -Sy --noconfirm --needed
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                     Installing Microcode
+-------------------------------------------------------------------------${Color_Off}
+"
+if grep -q "GenuineIntel" /proc/cpuinfo; then
+    echo -e "${BGreen}Installing Intel microcode...${Color_Off}"
+    pacman -S --noconfirm --needed intel-ucode
+elif grep -q "AuthenticAMD" /proc/cpuinfo; then
+    echo -e "${BGreen}Installing AMD microcode...${Color_Off}"
+    pacman -S --noconfirm --needed amd-ucode
+else
+    echo -e "${BYellow}Unable to determine CPU vendor. Skipping microcode installation.${Color_Off}"
+fi
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                 Installing Graphics Drivers
+-------------------------------------------------------------------------${Color_Off}
+"
+if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
+    echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
+    pacman -S --noconfirm --needed nvidia-lts
+elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
+    echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
+    pacman -S --noconfirm --needed xf86-video-amdgpu
+elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
+    echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
+    pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
+else
+    echo -e "${BYellow}Unable to determine GPU vendor. Skipping graphics driver installation.${Color_Off}"
+fi
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+    Adding User & fast-hyprland scipt
+-------------------------------------------------------------------------${Color_Off}
+"
+groupadd libvirt
+useradd -m -G wheel,libvirt -s /bin/bash $USERNAME
+echo -e "${BGreen}User '$USERNAME' created, added to 'wheel' and 'libvirt' groups.${Color_Off}"
+echo "$USERNAME:$PASSWORD" | chpasswd
+echo -e "${BGreen}Password for '$USERNAME' has been set.${Color_Off}"
+echo $NAME_OF_MACHINE > /etc/hostname
+echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
+
+echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
+wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
+echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
+cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
+
+if [[ ${FS} == "luks" ]]; then
+    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+    mkinitcpio -p linux-lts
+fi
+
+echo -ne "
+${BCyan}-------------------------------------------------------------------------
+     █████╗ ██████╗  ██████╗██╗  ██╗███████╗ █████╗ ███████╗████████╗
+    ██╔══██╗██╔══██╗██╔════╝██║  ██║██╔════╝██╔══██╗██╔════╝╚══██╔══╝
+    ███████║██████╔╝██║     ███████║█████╗  ███████║███████╗   ██║   
+    ██╔══██║██╔══██╗██║     ██╔══██║██╔══╝  ██╔══██║╚════██║   ██║   
+    ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
+    ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
+-------------------------------------------------------------------------
+${BYellow}                 Automated Arch Linux Installer${Color_Off}
+${BCyan}-------------------------------------------------------------------------${Color_Off}
+
+${BGreen}Final Setup and Configurations
+GRUB EFI Bootloader Install & Check${Color_Off}"
+
+if [[ -d "/sys/firmware/efi" ]]; then
+    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+    grub-install --efi-directory=/boot "${DISK}"
+    if [ $? -ne 0 ]; then
+        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+        exit 1
+    fi
+fi
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                   Creating Grub Boot Menu
+-------------------------------------------------------------------------${Color_Off}
+"
+if [[ "${FS}" == "luks" ]]; then
+    sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
+fi
+sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
+
+echo -e "${BGreen}Updating grub...${Color_Off}"
+grub-mkconfig -o /boot/grub/grub.cfg
+if [ $? -ne 0 ]; then
+    echo -e "${BRed}ERROR: Failed to create grub.cfg. Exiting.${Color_Off}"
+    exit 1
+fi
+
+echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
+if [ ! -f /boot/grub/grub.cfg ]; then
+    echo -e "${BRed}ERROR: grub.cfg was not created. Exiting.${Color_Off}"
+    exit 1
+fi
+if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
+    echo -e "${BRed}ERROR: grub.cfg does not contain an Arch Linux entry. Exiting.${Color_Off}"
+    exit 1
+fi
+echo -e "${BGreen}Grub configuration complete!${Color_Off}"
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                   Enabling Essential Services
+-------------------------------------------------------------------------${Color_Off}
+"
+ntpd -qg
+systemctl enable ntpd.service
+echo -e "${BGreen}  NTP enabled.${Color_Off}"
+systemctl disable dhcpcd.service
+echo -e "${BGreen}  DHCP disabled.${Color_Off}"
+systemctl start NetworkManager.service
+echo -e "${BGreen}  NetworkManager started.${Color_Off}"
+systemctl enable NetworkManager.service
+echo -e "${BGreen}  NetworkManager enabled.${Color_Off}"
+systemctl enable reflector.timer
+echo -e "${BGreen}  Reflector enabled.${Color_Off}"
+
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                          Cleaning
+-------------------------------------------------------------------------${Color_Off}
+"
+# Reverting temporary sudoers changes for security
+sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
+sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
+sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
+
+EOF
