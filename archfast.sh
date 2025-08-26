@@ -38,6 +38,31 @@ exec > >(tee -i archsetup.txt)
 exec 2>&1
 
 # ==============================================================================
+#                          Helper Functions
+# ==============================================================================
+
+print_box_title() {
+    local title="$1"
+    local color="${2:-$BBlue}"
+    
+    local tl="╭" tr="╮" bl="╰" br="╯" H="─"
+    local title_len=${#title}
+    local box_width=60
+    local padding_total=$((box_width - title_len - 2)) # -2 for spaces around title
+    local padding_left=$((padding_total / 2))
+    local padding_right=$((padding_total - padding_left))
+
+    local top_border="${tl}"
+    for ((i=0; i<padding_left; i++)); do top_border+="${H}"; done
+    top_border+=" ${BIWhite}${title}${color} "
+    for ((i=0; i<padding_right; i++)); do top_border+="${H}"; done
+    top_border+="${tr}"
+
+    echo -e "\n${color}${top_border}${Color_Off}"
+}
+
+
+# ==============================================================================
 #                          Initial System Checks
 # ==============================================================================
 logo() {
@@ -109,7 +134,7 @@ userinfo () {
     pacman -S --noconfirm --needed fzf
     
     # Prompt for username
-    USERNAME=$(echo "archuser" | fzf --prompt="Enter a username for your new system: " --print-query | tail -n 1)
+    USERNAME=$(echo "archuser" | fzf --prompt="Enter a username for your new system: " --print-query --height=20% --layout=reverse --border=rounded --border-label=" User Setup " | tail -n 1)
     if [ -z "$USERNAME" ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
@@ -119,21 +144,26 @@ userinfo () {
     # Prompt for password
     local password_match=false
     while [ "$password_match" = false ]; do
-        read -s -p "Enter password for $USERNAME: " PASSWORD
+        clear
+        logo
+        print_box_title "Password for $USERNAME"
+        echo -e "${BYellow}Please enter the password (input will not be visible).${Color_Off}"
+        read -s -p "  Password: " PASSWORD
         echo
-        read -s -p "Re-enter password: " PASSWORD2
+        read -s -p "  Confirm Password: " PASSWORD2
         echo
 
         if [ "$PASSWORD" == "$PASSWORD2" ]; then
             password_match=true
         else
-            echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
+            echo -e "\n${BRed}Passwords do not match. Press Enter to try again.${Color_Off}"
+            read -r
         fi
     done
     export PASSWORD
     
     # Prompt for hostname
-    NAME_OF_MACHINE=$(echo "myarch" | fzf --prompt="Please name your machine (hostname): " --print-query | tail -n 1)
+    NAME_OF_MACHINE=$(echo "myarch" | fzf --prompt="Please name your machine (hostname): " --print-query --height=20% --layout=reverse --border=rounded --border-label=" Hostname Setup " | tail -n 1)
     if [ -z "$NAME_OF_MACHINE" ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
@@ -143,7 +173,10 @@ userinfo () {
 
 diskpart () {
     DISK_INFO=$(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
-    DISK=$(echo "$DISK_INFO" | fzf --prompt="WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK. Please select the disk to install Arch Linux on: " | awk '{print $1}')
+    DISK=$(echo "$DISK_INFO" | fzf --prompt="Select the disk to install Arch Linux on: " \
+        --border=rounded --border-label=" Disk Selection " \
+        --header="WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK." \
+        --height=40% --layout=reverse | awk '{print $1}')
     
     if [ -z "$DISK" ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
@@ -151,7 +184,7 @@ diskpart () {
     fi
     export DISK="/dev/${DISK}"
 
-    IS_SSD=$(echo -e "Yes\nNo" | fzf --prompt="Is this an SSD? ")
+    IS_SSD=$(echo -e "Yes\nNo" | fzf --prompt="Is this an SSD? " --height=20% --layout=reverse --border=rounded --border-label=" SSD Check ")
     if [ "$IS_SSD" == "Yes" ]; then
         export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
@@ -160,7 +193,7 @@ diskpart () {
 }
 
 filesystem () {
-    FS_CHOICE=$(echo -e "btrfs - Btrfs with zstd compression and snapshots\next4 - Ext4 - a simple and reliable choice\nluks - Btrfs with LUKS full-disk encryption" | fzf --prompt="Please select a filesystem: " | awk '{print $1}')
+    FS_CHOICE=$(echo -e "btrfs - Btrfs with zstd compression and snapshots\next4 - Ext4 - a simple and reliable choice\nluks - Btrfs with LUKS full-disk encryption" | fzf --prompt="Please select a filesystem: " --height=40% --layout=reverse --border=rounded --border-label=" Filesystem Selection " | awk '{print $1}')
 
     if [ -z "$FS_CHOICE" ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
@@ -171,15 +204,20 @@ filesystem () {
     if [[ "${FS}" == "luks" ]]; then
         local luks_password_match=false
         while [ "$luks_password_match" = false ]; do
-            read -s -p "Enter a strong password for disk encryption: " LUKS_PASSWORD
+            clear
+            logo
+            print_box_title "LUKS Encryption Password"
+            echo -e "${BYellow}Enter a strong password for disk encryption.${Color_Off}"
+            read -s -p "  Encryption Password: " LUKS_PASSWORD
             echo
-            read -s -p "Re-enter the password to confirm: " LUKS_PASSWORD2
+            read -s -p "  Confirm Password: " LUKS_PASSWORD2
             echo
 
             if [ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]; then
                 luks_password_match=true
             else
-                echo -e "${BRed}Passwords do not match. Please try again.${Color_Off}"
+                echo -e "\n${BRed}Passwords do not match. Press Enter to try again.${Color_Off}"
+                read -r
             fi
         done
         export LUKS_PASSWORD
@@ -189,18 +227,16 @@ filesystem () {
 timezone () {
     TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
     if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
-        # If curl is successful and returns a value, ask for confirmation.
-        CONFIRM_TZ=$(echo -e "Yes\nNo" | fzf --prompt="System detected your timezone to be '${TIME_ZONE}'. Is this correct? ")
+        CONFIRM_TZ=$(echo -e "Yes\nNo" | fzf --prompt="System detected timezone '${TIME_ZONE}'. Is this correct? " --height=20% --layout=reverse --border=rounded --border-label=" Timezone Confirmation ")
         if [ "$CONFIRM_TZ" == "Yes" ]; then
             export TIMEZONE=$TIME_ZONE
         else
-            # If the user says no, prompt for manual input.
-            NEW_TIMEZONE=$(find /usr/share/zoneinfo -type f | sed 's|/usr/share/zoneinfo/||' | fzf --prompt="Enter your desired timezone (e.g., Europe/London): ")
+            NEW_TIMEZONE=$(find /usr/share/zoneinfo -type f | sed 's|/usr/share/zoneinfo/||' | fzf --prompt="Please select your timezone: " --height=60% --layout=reverse --border=rounded --border-label=" Timezone Selection ")
             export TIMEZONE=$NEW_TIMEZONE
         fi
     else
         echo -e "${BYellow}Warning: Timezone auto-detection failed. Proceeding with manual prompt.${Color_Off}"
-        NEW_TIMEZONE=$(find /usr/share/zoneinfo -type f | sed 's|/usr/share/zoneinfo/||' | fzf --prompt="Enter your desired timezone (e.g., Europe/London): ")
+        NEW_TIMEZONE=$(find /usr/share/zoneinfo -type f | sed 's|/usr/share/zoneinfo/||' | fzf --prompt="Please select your timezone: " --height=60% --layout=reverse --border=rounded --border-label=" Timezone Selection ")
         export TIMEZONE=$NEW_TIMEZONE
     fi
 }
@@ -208,7 +244,7 @@ timezone () {
 keymap () {
     local keymap_choice
 
-    keymap_choice=$(echo -e "us - United States\nde - Germany\nfr - France\nes - Spain\nMore... - Browse all layouts" | fzf --prompt="Select a common keyboard layout: " | awk '{print $1}')
+    keymap_choice=$(echo -e "us\t- United States\nde\t- Germany\nfr\t- France\nes\t- Spain\nMore...\t- Browse all layouts" | fzf --prompt="Select a common keyboard layout: " --height=40% --layout=reverse --border=rounded --border-label=" Keyboard Layout " | awk '{print $1}')
     
     if [ -z "$keymap_choice" ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
@@ -216,7 +252,7 @@ keymap () {
     fi
 
     if [ "$keymap_choice" == "More..." ]; then
-        keymap_choice=$(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | fzf --prompt="Select your keyboard layout: ")
+        keymap_choice=$(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | fzf --prompt="Select your keyboard layout: " --height=60% --layout=reverse --border=rounded --border-label=" All Keyboard Layouts ")
         if [ -z "$keymap_choice" ]; then
             echo -e "${BRed}User canceled. Exiting.${Color_Off}"
             exit 1
@@ -232,18 +268,19 @@ keymap () {
 # ==============================================================================
 
 background_checks
-clear
+logo
 userinfo
-clear
+logo
 diskpart
-clear
+logo
 filesystem
-clear
+logo
 timezone
-clear
+logo
 keymap
 
-CONFIRM_INSTALL=$(echo -e "Yes\nNo" | fzf --prompt="Are you ready to begin the installation? All data on the selected disk will be erased. ")
+logo
+CONFIRM_INSTALL=$(echo -e "Yes\nNo" | fzf --prompt="Ready to begin installation? All data on the selected disk will be erased. " --height=20% --layout=reverse --border=rounded --border-label=" Final Confirmation ")
 if [ "$CONFIRM_INSTALL" == "Yes" ]; then
      echo -en "
 ${BCyan}-------------------------------------------------------------------------
