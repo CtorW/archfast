@@ -67,10 +67,6 @@ else
     BIWhite="\033[1;97m"
 fi
 
-# Redirect all output to a log file
-exec > >(tee -i archsetup.txt)
-exec 2>&1
-
 # ==============================================================================
 #             Initial System Checks
 # ==============================================================================
@@ -661,7 +657,7 @@ user_packages
 if (whiptail --title "Installation Confirmation" --yesno "All user input is collected. The installation will now run in the background. Are you ready to proceed? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
     clear
     logo
-    main_installation_process &
+    main_installation_process > archsetup.txt 2>&1 &
     
     whiptail --title "Installation in Progress" --msgbox "The Arch Linux installation is now running in the background. Grab your coffee and chill!\n\nYou can check the progress in the 'archsetup.txt' log file.\n\nThis script will automatically reboot the system once it is finished." 15 70
 else
