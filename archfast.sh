@@ -415,7 +415,8 @@ main_installation_process() {
         fi
     fi
 
-    echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
+    echo -en "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
+    
     TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
     if [[ $TOTAL_MEM -lt 8000000 ]]; then
         echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
