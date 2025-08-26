@@ -120,9 +120,9 @@ background_checks() {
 #             Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
-    # Install whiptail if it's not already installed
-    echo -e "${BGreen}Checking for whiptail...${Color_Off}"
-    pacman -S --noconfirm --needed whiptail
+    # Install whiptail and dialog if they're not already installed
+    echo -e "${BGreen}Checking for whiptail and dialog...${Color_Off}"
+    pacman -S --noconfirm --needed whiptail dialog
     
     # Prompt for username
     USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
@@ -658,8 +658,8 @@ if (whiptail --title "Installation Confirmation" --yesno "All user input is coll
     # Get the process ID of the background task
     bg_pid=$!
     
-    # Use tailbox to show the log file in real-time
-    whiptail --title "Arch Linux Installation Log" --scrolltext --tailbox archsetup.txt 25 80
+    # Use dialog to show the log file in real-time
+    dialog --title "Arch Linux Installation Log" --no-cancel --tailbox archsetup.txt 25 80
     
     # Wait for the background process to finish before exiting the script
     wait $bg_pid
