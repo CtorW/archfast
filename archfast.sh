@@ -4,63 +4,72 @@
 #           Color Definitions for a More Beautiful Terminal Experience
 # ==============================================================================
 
-# Hardcoded ANSI codes
-Color_Off="\033[0m"
-Black="\033[0;30m"
-Red="\033[0;31m"
-Green="\033[0;32m"
-Yellow="\033[0;33m"
-Blue="\033[0;34m"
-Purple="\033[0;35m"
-Cyan="\033[0;36m"
-White="\033[0;37m"
+# Check if terminal supports colors and use tput, otherwise use raw codes
+if tput setaf 1 >/dev/null 2>&1; then
+    # Standard Colors
+    Color_Off="$(tput sgr0)"
+    Black="$(tput setaf 0)"
+    Red="$(tput setaf 1)"
+    Green="$(tput setaf 2)"
+    Yellow="$(tput setaf 3)"
+    Blue="$(tput setaf 4)"
+    Purple="$(tput setaf 5)"
+    Cyan="$(tput setaf 6)"
+    White="$(tput setaf 7)"
 
-BBlack="\033[1;30m"
-BRed="\033[1;31m"
-BGreen="\033[1;32m"
-BYellow="\033[1;33m"
-BBlue="\033[1;34m"
-BPurple="\033[1;35m"
-BCyan="\033[1;36m"
-BWhite="\033[1;37m"
+    # Bold Colors
+    BBlack="$(tput bold; tput setaf 0)"
+    BRed="$(tput bold; tput setaf 1)"
+    BGreen="$(tput bold; tput setaf 2)"
+    BYellow="$(tput bold; tput setaf 3)"
+    BBlue="$(tput bold; tput setaf 4)"
+    BPurple="$(tput bold; tput setaf 5)"
+    BCyan="$(tput bold; tput setaf 6)"
+    BWhite="$(tput bold; tput setaf 7)"
 
-BIBlack="\033[1;90m"
-BIRed="\033[1;91m"
-BIGreen="\033[1;92m"
-BIYellow="\033[1;93m"
-BIBlue="\033[1;94m"
-BIPurple="\033[1;95m"
-BICyan="\033[1;96m"
-BIWhite="\033[1;97m"
+    # Bright Bold Colors
+    BIBlack="$(tput bold; tput setaf 8)"
+    BIRed="$(tput bold; tput setaf 9)"
+    BIGreen="$(tput bold; tput setaf 10)"
+    BIYellow="$(tput bold; tput setaf 11)"
+    BIBlue="$(tput bold; tput setaf 12)"
+    BIPurple="$(tput bold; tput setaf 13)"
+    BICyan="$(tput bold; tput setaf 14)"
+    BIWhite="$(tput bold; tput setaf 15)"
+else
+    # Fallback to hardcoded ANSI codes if tput is not available or supported
+    Color_Off="\033[0m"
+    Black="\033[0;30m"
+    Red="\033[0;31m"
+    Green="\033[0;32m"
+    Yellow="\033[0;33m"
+    Blue="\033[0;34m"
+    Purple="\033[0;35m"
+    Cyan="\033[0;36m"
+    White="\033[0;37m"
+
+    BBlack="\033[1;30m"
+    BRed="\033[1;31m"
+    BGreen="\033[1;32m"
+    BYellow="\033[1;33m"
+    BBlue="\033[1;34m"
+    BPurple="\033[1;35m"
+    BCyan="\033[1;36m"
+    BWhite="\033[1;37m"
+    
+    BIBlack="\033[1;90m"
+    BIRed="\033[1;91m"
+    BIGreen="\033[1;92m"
+    BIYellow="\033[1;93m"
+    BIBlue="\033[1;94m"
+    BIPurple="\033[1;95m"
+    BICyan="\033[1;96m"
+    BIWhite="\033[1;97m"
+fi
 
 # Redirect all output to a log file
 exec > >(tee -i archsetup.txt)
 exec 2>&1
-
-# ==============================================================================
-#                          Helper Functions
-# ==============================================================================
-
-print_box_title() {
-    local title="$1"
-    local color="${2:-$BBlue}"
-    
-    local tl="╭" tr="╮" bl="╰" br="╯" H="─"
-    local title_len=${#title}
-    local box_width=60
-    local padding_total=$((box_width - title_len - 2)) # -2 for spaces around title
-    local padding_left=$((padding_total / 2))
-    local padding_right=$((padding_total - padding_left))
-
-    local top_border="${tl}"
-    for ((i=0; i<padding_left; i++)); do top_border+="${H}"; done
-    top_border+=" ${BIWhite}${title}${color} "
-    for ((i=0; i<padding_right; i++)); do top_border+="${H}"; done
-    top_border+="${tr}"
-
-    echo -e "\n${color}${top_border}${Color_Off}"
-}
-
 
 # ==============================================================================
 #                          Initial System Checks
@@ -76,7 +85,7 @@ ${BCyan}------------------------------------------------------------------------
     ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
-${BYellow}                            Automated Arch Linux Installer${Color_Off}
+${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 "
 }
@@ -126,16 +135,16 @@ background_checks() {
 }
 
 # ==============================================================================
-#                          Interactive Prompts (using fzf TUI)
+#                          Interactive Prompts (using Whiptail TUI)
 # ==============================================================================
 userinfo () {
-    # Install fzf if it's not already installed
-    echo -e "${BGreen}Checking for fzf...${Color_Off}"
-    pacman -S --noconfirm --needed fzf
+    # Install whiptail if it's not already installed
+    echo -e "${BGreen}Checking for whiptail...${Color_Off}"
+    pacman -S --noconfirm --needed whiptail
     
     # Prompt for username
-    USERNAME=$(echo "archuser" | fzf --prompt="Enter a username for your new system: " --print-query --height=20% --layout=reverse --border=rounded --border-label=" User Setup " | tail -n 1)
-    if [ -z "$USERNAME" ]; then
+    USERNAME=$(whiptail --title "User Setup" --inputbox "Enter a username for your new system:" 10 60 archuser 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
@@ -144,27 +153,29 @@ userinfo () {
     # Prompt for password
     local password_match=false
     while [ "$password_match" = false ]; do
-        clear
-        logo
-        print_box_title "Password for $USERNAME"
-        echo -e "${BYellow}Please enter the password (input will not be visible).${Color_Off}"
-        read -s -p "  Password: " PASSWORD
-        echo
-        read -s -p "  Confirm Password: " PASSWORD2
-        echo
+        PASSWORD=$(whiptail --title "Password for $USERNAME" --passwordbox "Enter password:" 10 60 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then
+            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+            exit 1
+        fi
+        
+        PASSWORD2=$(whiptail --title "Password for $USERNAME" --passwordbox "Re-enter password:" 10 60 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then
+            echo -e "${BRed}User canceled. Exiting.${Color_Off}"
+            exit 1
+        fi
 
         if [ "$PASSWORD" == "$PASSWORD2" ]; then
             password_match=true
         else
-            echo -e "\n${BRed}Passwords do not match. Press Enter to try again.${Color_Off}"
-            read -r
+            whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
         fi
     done
     export PASSWORD
     
     # Prompt for hostname
-    NAME_OF_MACHINE=$(echo "myarch" | fzf --prompt="Please name your machine (hostname): " --print-query --height=20% --layout=reverse --border=rounded --border-label=" Hostname Setup " | tail -n 1)
-    if [ -z "$NAME_OF_MACHINE" ]; then
+    NAME_OF_MACHINE=$(whiptail --title "Hostname Setup" --inputbox "Please name your machine (hostname):" 10 60 myarch 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
@@ -172,20 +183,22 @@ userinfo () {
 }
 
 diskpart () {
-    DISK_INFO=$(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
-    DISK=$(echo "$DISK_INFO" | fzf --prompt="Select the disk to install Arch Linux on: " \
-        --border=rounded --border-label=" Disk Selection " \
-        --header="WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK." \
-        --height=40% --layout=reverse | awk '{print $1}')
-    
-    if [ -z "$DISK" ]; then
+    declare -a disk_list=()
+    while read -r line; do
+        disk_name=$(echo "$line" | awk '{print $1}')
+        disk_size=$(echo "$line" | awk '{print $2}')
+        disk_model=$(echo "$line" | awk '{print $3}')
+        disk_list+=("${disk_name}" "${disk_size} ${disk_model}")
+    done < <(lsblk -o KNAME,SIZE,MODEL -d | grep -E "sd|hd|vd|nvme|mmcblk")
+
+    DISK=$(whiptail --title "Disk Selection" --menu "WARNING: THIS WILL FORMAT AND DELETE ALL DATA ON THE SELECTED DISK.\nPlease select the disk to install Arch Linux on:" 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
     export DISK="/dev/${DISK}"
 
-    IS_SSD=$(echo -e "Yes\nNo" | fzf --prompt="Is this an SSD? " --height=20% --layout=reverse --border=rounded --border-label=" SSD Check ")
-    if [ "$IS_SSD" == "Yes" ]; then
+    if (whiptail --title "SSD?" --yesno "Is this an SSD?" 10 60 3>&1 1>&2 2>&3); then
         export MOUNT_OPTIONS="noatime,compress=zstd,ssd,commit=120"
     else
         export MOUNT_OPTIONS="noatime,compress=zstd,commit=120"
@@ -193,31 +206,24 @@ diskpart () {
 }
 
 filesystem () {
-    FS_CHOICE=$(echo -e "btrfs - Btrfs with zstd compression and snapshots\next4 - Ext4 - a simple and reliable choice\nluks - Btrfs with LUKS full-disk encryption" | fzf --prompt="Please select a filesystem: " --height=40% --layout=reverse --border=rounded --border-label=" Filesystem Selection " | awk '{print $1}')
-
-    if [ -z "$FS_CHOICE" ]; then
+    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist "Please select a filesystem:  (use space for selection)" 15 60 3 \
+    "btrfs" "Btrfs with zstd compression and snapshots" OFF \
+    "ext4" "Ext4 - a simple and reliable choice" OFF \
+    "luks" "Btrfs with LUKS full-disk encryption" OFF 3>&1 1>&2 2>&3)
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
     export FS=${FS_CHOICE}
     
     if [[ "${FS}" == "luks" ]]; then
-        local luks_password_match=false
-        while [ "$luks_password_match" = false ]; do
-            clear
-            logo
-            print_box_title "LUKS Encryption Password"
-            echo -e "${BYellow}Enter a strong password for disk encryption.${Color_Off}"
-            read -s -p "  Encryption Password: " LUKS_PASSWORD
-            echo
-            read -s -p "  Confirm Password: " LUKS_PASSWORD2
-            echo
-
-            if [ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]; then
-                luks_password_match=true
-            else
-                echo -e "\n${BRed}Passwords do not match. Press Enter to try again.${Color_Off}"
-                read -r
+        LUKS_PASSWORD=""
+        LUKS_PASSWORD2="not_matching"
+        while [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; do
+            LUKS_PASSWORD=$(whiptail --title "LUKS Encryption" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
+            LUKS_PASSWORD2=$(whiptail --title "LUKS Encryption" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
+            if [[ "$LUKS_PASSWORD" != "$LUKS_PASSWORD2" ]]; then
+                whiptail --title "Password Mismatch" --msgbox "Passwords do not match. Please try again." 10 60
             fi
         done
         export LUKS_PASSWORD
@@ -227,16 +233,17 @@ filesystem () {
 timezone () {
     TIME_ZONE=$(curl --fail https://ipapi.co/timezone)
     if [ $? -eq 0 ] && [ -n "${TIME_ZONE}" ]; then
-        CONFIRM_TZ=$(echo -e "Yes\nNo" | fzf --prompt="System detected timezone '${TIME_ZONE}'. Is this correct? " --height=20% --layout=reverse --border=rounded --border-label=" Timezone Confirmation ")
-        if [ "$CONFIRM_TZ" == "Yes" ]; then
+        # If curl is successful and returns a value, ask for confirmation.
+        if (whiptail --title "Timezone" --yesno "System detected your timezone to be '${TIME_ZONE}'. Is this correct?" 10 60 3>&1 1>&2 2>&3); then
             export TIMEZONE=$TIME_ZONE
         else
-            NEW_TIMEZONE=$(find /usr/share/zoneinfo -type f | sed 's|/usr/share/zoneinfo/||' | fzf --prompt="Please select your timezone: " --height=60% --layout=reverse --border=rounded --border-label=" Timezone Selection ")
+            # If the user says no, or if curl failed, prompt for manual input.
+            NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
             export TIMEZONE=$NEW_TIMEZONE
         fi
     else
         echo -e "${BYellow}Warning: Timezone auto-detection failed. Proceeding with manual prompt.${Color_Off}"
-        NEW_TIMEZONE=$(find /usr/share/zoneinfo -type f | sed 's|/usr/share/zoneinfo/||' | fzf --prompt="Please select your timezone: " --height=60% --layout=reverse --border=rounded --border-label=" Timezone Selection ")
+        NEW_TIMEZONE=$(whiptail --title "Timezone" --inputbox "Enter your desired timezone (e.g., Europe/London):" 10 60 3>&1 1>&2 2>&3)
         export TIMEZONE=$NEW_TIMEZONE
     fi
 }
@@ -244,16 +251,26 @@ timezone () {
 keymap () {
     local keymap_choice
 
-    keymap_choice=$(echo -e "us\t- United States\nde\t- Germany\nfr\t- France\nes\t- Spain\nMore...\t- Browse all layouts" | fzf --prompt="Select a common keyboard layout: " --height=40% --layout=reverse --border=rounded --border-label=" Keyboard Layout " | awk '{print $1}')
+    keymap_choice=$(whiptail --title "Keyboard Layout Selection" --menu "Select a common keyboard layout:" 15 60 7 \
+    "us" "United States" \
+    "de" "Germany" \
+    "fr" "France" \
+    "es" "Spain" \
+    "More..." "Browse all layouts" 3>&1 1>&2 2>&3)
     
-    if [ -z "$keymap_choice" ]; then
+    if [ $? != 0 ]; then
         echo -e "${BRed}User canceled. Exiting.${Color_Off}"
         exit 1
     fi
 
     if [ "$keymap_choice" == "More..." ]; then
-        keymap_choice=$(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | fzf --prompt="Select your keyboard layout: " --height=60% --layout=reverse --border=rounded --border-label=" All Keyboard Layouts ")
-        if [ -z "$keymap_choice" ]; then
+        declare -a keymap_list=()
+        while read -r line; do
+            keymap_list+=("$(echo "$line" | cut -d' ' -f1)" "$(echo "$line" | cut -d' ' -f2-)")
+        done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
+
+        keymap_choice=$(whiptail --title "All Keyboard Layouts" --menu "Select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then
             echo -e "${BRed}User canceled. Exiting.${Color_Off}"
             exit 1
         fi
@@ -267,21 +284,20 @@ keymap () {
 #                             Main Installation Workflow
 # ==============================================================================
 
+# Run initial checks before starting
 background_checks
-logo
+clear
 userinfo
-logo
+clear
 diskpart
-logo
+clear
 filesystem
-logo
+clear
 timezone
-logo
+clear
 keymap
 
-logo
-CONFIRM_INSTALL=$(echo -e "Yes\nNo" | fzf --prompt="Ready to begin installation? All data on the selected disk will be erased. " --height=20% --layout=reverse --border=rounded --border-label=" Final Confirmation ")
-if [ "$CONFIRM_INSTALL" == "Yes" ]; then
+if (whiptail --title "Installation Confirmation" --yesno "Are you ready to begin the installation? All data on the selected disk will be erased." 10 60 3>&1 1>&2 2>&3); then
      echo -en "
 ${BCyan}-------------------------------------------------------------------------
 ██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
@@ -322,7 +338,7 @@ sed -i 's/^#ParallelDownloads/ParallelDownloads/' /etc/pacman.conf
 pacman -S --noconfirm --needed reflector rsync grub
 cp /etc/pacman.d/mirrorlist /etc/pacman.d/mirrorlist.backup
 echo -e "${BCyan}-------------------------------------------------------------------------
-                            Setting up $iso mirrors for faster downloads
+              Setting up $iso mirrors for faster downloads
 -------------------------------------------------------------------------${Color_Off}"
 reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
 if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
@@ -389,8 +405,8 @@ elif [[ "${FS}" == "luks" ]]; then
     mkfs.fat -F32 "${partition2}"
     echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
     echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-    mkfs.btrfs /dev/mapper/ROOT
-    mount -t btrfs /dev/mapper/ROOT /mnt
+    mkfs.btrfs "${partition3}"
+    mount -t btrfs "${partition3}" /mnt
     subvolumesetup
     ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
 fi
@@ -427,10 +443,10 @@ cat /mnt/etc/fstab
 
 echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
+    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
     grub-install --boot-directory=/mnt/boot "${DISK}"
     if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
+        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
         exit 1
     fi
 fi
@@ -451,13 +467,14 @@ if [[ $TOTAL_MEM -lt 8000000 ]]; then
     echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
 fi
 
+# Chroot into the new system to continue configuration
 arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
 
 echo "root:${PASSWORD}" | chpasswd
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                                Network Setup
+                        Network Setup
 -------------------------------------------------------------------------${Color_Off}
 "
 pacman -S --noconfirm --needed networkmanager dhcpcd
@@ -465,7 +482,7 @@ systemctl enable NetworkManager
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                        Setting up mirrors for optimal download
+              Setting up mirrors for optimal download
 -------------------------------------------------------------------------${Color_Off}
 "
 pacman -S --noconfirm --needed pacman-contrib curl
@@ -476,9 +493,9 @@ nc=\$(grep -c ^"cpu cores" /proc/cpuinfo)
 export nc
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                                You have \${nc} cores. And
-                                changing the makeflags for \${nc} cores. Aswell as
-                                changing the compression settings.
+                    You have \${nc} cores. And
+              changing the makeflags for \${nc} cores. Aswell as
+                   changing the compression settings.
 -------------------------------------------------------------------------${Color_Off}
 "
 TOTAL_MEM=\$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
@@ -488,7 +505,7 @@ if [[ \$TOTAL_MEM -gt 8000000 ]]; then
 fi
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                        Setup Language to US and set locale
+              Setup Language to US and set locale
 -------------------------------------------------------------------------${Color_Off}
 "
 sed -i 's/^#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen
@@ -496,7 +513,7 @@ locale-gen
 timedatectl --no-ask-password set-timezone ${TIMEZONE}
 timedatectl --no-ask-password set-ntp 1
 localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
-ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 
 echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
 echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
@@ -514,7 +531,7 @@ pacman -Sy --noconfirm --needed
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                                Installing Microcode
+                     Installing Microcode
 -------------------------------------------------------------------------${Color_Off}
 "
 if grep -q "GenuineIntel" /proc/cpuinfo; then
@@ -529,17 +546,16 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                                Installing Graphics Drivers
+                 Installing Graphics Drivers
 -------------------------------------------------------------------------${Color_Off}
 "
-gpu_type=\$(lspci | grep -E "VGA|3D")
-if echo "\${gpu_type}" | grep -E "NVIDIA|GeForce"; then
+if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
     echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
     pacman -S --noconfirm --needed nvidia-lts
-elif echo "\${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
+elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
     echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
     pacman -S --noconfirm --needed xf86-video-amdgpu
-elif echo "\${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
+elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
     echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
     pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
 else
@@ -548,7 +564,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-   Adding User & fast-hyprland scipt
+    Adding User & fast-hyprland scipt
 -------------------------------------------------------------------------${Color_Off}
 "
 groupadd libvirt
@@ -578,7 +594,7 @@ ${BCyan}------------------------------------------------------------------------
     ██║  ██║██║  ██║╚██████╗██║  ██║██║     ██║  ██║███████║   ██║   
     ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝╚══════╝   ╚═╝                 
 -------------------------------------------------------------------------
-${BYellow}                            Automated Arch Linux Installer${Color_Off}
+${BYellow}                 Automated Arch Linux Installer${Color_Off}
 ${BCyan}-------------------------------------------------------------------------${Color_Off}
 
 ${BGreen}Final Setup and Configurations
@@ -586,7 +602,7 @@ GRUB EFI Bootloader Install & Check${Color_Off}"
 
 if [[ -d "/sys/firmware/efi" ]]; then
     echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --efi-directory=/boot --removable
+    grub-install --efi-directory=/boot "${DISK}"
     if [ $? -ne 0 ]; then
         echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
         exit 1
@@ -595,7 +611,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                                Creating Grub Boot Menu
+                   Creating Grub Boot Menu
 -------------------------------------------------------------------------${Color_Off}
 "
 if [[ "${FS}" == "luks" ]]; then
@@ -623,7 +639,7 @@ echo -e "${BGreen}Grub configuration complete!${Color_Off}"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                                Enabling Essential Services
+                   Enabling Essential Services
 -------------------------------------------------------------------------${Color_Off}
 "
 ntpd -qg
@@ -640,9 +656,10 @@ echo -e "${BGreen}  Reflector enabled.${Color_Off}"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-                                        Cleaning
+                          Cleaning
 -------------------------------------------------------------------------${Color_Off}
 "
+# Reverting temporary sudoers changes for security
 sed -i 's/^%wheel ALL=(ALL:ALL) NOPASSWD: ALL/# %wheel ALL=(ALL:ALL) NOPASSWD: ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
