@@ -45,7 +45,7 @@ cd archfast
 
 ### 🔁 Reboot your system
 
-🧏 Log in to your Machine $USERNAME|$PASSWORD
+### 🧏 Log in to your Machine $USERNAME|$PASSWORD
 
 ### ⌨️ Now Run the fast-hyprland.sh
 ```bash
