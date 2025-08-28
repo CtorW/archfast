@@ -256,6 +256,15 @@ keymap () {
     export KEYMAP="${keymap_choice}"
 }
 
+swap_option () {
+    if (whiptail --title "Swap Configuration" --yesno \
+    "Do you want to create a swap space?\n\nThis is recommended for systems with low RAM (less than 8GB) or for users who run memory-intensive applications or use hibernation." 12 78 3>&1 1>&2 2>&3); then
+        export USE_SWAP="yes"
+    else
+        export USE_SWAP="no"
+    fi
+}
+
 # ==============================================================================
 #                             Main Installation Workflow
 # ==============================================================================
@@ -277,6 +286,9 @@ clear
 logo
 keymap
 clear
+logo
+swap_option
+clear
 
 SUMMARY="
     User:           ${USERNAME}
@@ -284,10 +296,11 @@ SUMMARY="
     Timezone:       ${TIMEZONE}
     Keyboard:       ${KEYMAP}
     Filesystem:     ${FS}
+    Use Swap:       ${USE_SWAP}
 "
 
 if (whiptail --title "FINAL CONFIRMATION" --yesno \
-"Please review your settings before proceeding.\n\n------------------------------------------------\n${SUMMARY}\n------------------------------------------------\n\nInstallation Target:  ${DISK}\n\n[  WARNING  ]\nContinuing will PARTITION and FORMAT the disk, permanently ERASING ALL DATA.\n\nAre you absolutely sure you want to begin the installation?" 22 78 3>&1 1>&2 2>&3); then
+"Please review your settings before proceeding.\n\n------------------------------------------------\n${SUMMARY}\n------------------------------------------------\n\nInstallation Target:  ${DISK}\n\n[  WARNING  ]\nContinuing will PARTITION and FORMAT the disk, permanently ERASING ALL DATA.\n\nAre you absolutely sure you want to begin the installation?" 24 78 3>&1 1>&2 2>&3); then
      echo -en "
 ${BCyan}-------------------------------------------------------------------------
 ██████╗ ██╗   ██╗███╗   ██╗███╗   ██╗██╗███╗   ██╗ ██████╗               
@@ -441,21 +454,28 @@ if [[ ! -d "/sys/firmware/efi" ]]; then
     fi
 fi
 
-echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
-TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-if [[ $TOTAL_MEM -lt 8000000 ]]; then
-    echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
-    mkdir -p /mnt/opt/swap
-    if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
-        chattr +C /mnt/opt/swap
+if [[ "${USE_SWAP}" == "yes" ]]; then
+    echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
+    TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
+    if [[ $TOTAL_MEM -lt 8000000 ]]; then
+        echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
+        mkdir -p /mnt/opt/swap
+        if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
+            chattr +C /mnt/opt/swap
+        fi
+        dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
+        chmod 600 /mnt/opt/swap/swapfile
+        chown root /mnt/opt/swap/swapfile
+        mkswap /mnt/opt/swap/swapfile
+        swapon /mnt/opt/swap/swapfile
+        echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
+    else
+        echo -e "${BGreen}System has 8GB or more RAM. Skipping swap file creation as per script's logic.${Color_Off}"
     fi
-    dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
-    chmod 600 /mnt/opt/swap/swapfile
-    chown root /mnt/opt/swap/swapfile
-    mkswap /mnt/opt/swap/swapfile
-    swapon /mnt/opt/swap/swapfile
-    echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
+else
+    echo -e "${BYellow}User opted out of swap creation. Skipping.${Color_Off}"
 fi
+
 
 arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
 
