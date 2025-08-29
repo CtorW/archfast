@@ -280,6 +280,34 @@ swap_option () {
     if [ $? != 0 ]; then echo -e "${BRed}User canceled at Swap Configuration prompt. Exiting.${Color_Off}"; exit 1; fi
 }
 
+swap_size_customization () {
+    SWAP_CHOICE=$(whiptail --title "Swap File Size" --radiolist \
+    "Choose a swap file size. This is recommended for systems with low RAM or for hibernation." 15 78 5 \
+    "2" "2GB - Suitable for systems with 4-8GB RAM" ON \
+    "4" "4GB - Good for 8GB RAM or light hibernation use" OFF \
+    "8" "8GB - Recommended for 8GB+ RAM with hibernation" OFF \
+    "custom" "Enter a custom size manually" OFF 3>&1 1>&2 2>&3)
+    
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Swap Size selection. Exiting.${Color_Off}"; exit 1; fi
+
+    if [ "$SWAP_CHOICE" == "custom" ]; then
+        SWAP_SIZE_GB=$(whiptail --title "Custom Swap Size" --inputbox \
+        "Please enter the desired swap file size in Gigabytes (e.g., 4)." 10 60 4 3>&1 1>&2 2>&3)
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled at Custom Swap Size input. Exiting.${Color_Off}"; exit 1; fi
+        
+        if ! [[ "$SWAP_SIZE_GB" =~ ^[1-9][0-9]*$ ]]; then
+            whiptail --title "Invalid Input" --msgbox "Invalid number entered. Defaulting to 2GB." 10 60
+            SWAP_SIZE_GB=2
+        fi
+    else
+        SWAP_SIZE_GB=$SWAP_CHOICE
+    fi
+
+    export SWAP_SIZE_GB
+    export SWAP_FILE_SIZE_MB=$((SWAP_SIZE_GB * 1024))
+}
+
+
 # ==============================================================================
 #                             Main Installation Workflow
 # ==============================================================================
@@ -303,6 +331,11 @@ keymap
 clear
 logo
 swap_option
+if [[ "${USE_SWAP}" == "yes" && "${FS}" != "lvm" && "${FS}" != "lvm_on_luks" ]]; then
+    clear
+    logo
+    swap_size_customization
+fi
 clear
 
 SUMMARY="
@@ -313,6 +346,10 @@ SUMMARY="
     Filesystem:     ${FS}
     Use Swap:       ${USE_SWAP}
 "
+if [[ "${USE_SWAP}" == "yes" && -n "$SWAP_SIZE_GB" ]]; then
+    SUMMARY+="    Swap File Size: ${SWAP_SIZE_GB}GB\n"
+fi
+
 
 if (whiptail --title "FINAL CONFIRMATION" --yesno \
 "Please review your settings before proceeding.\n\n------------------------------------------------\n${SUMMARY}\n------------------------------------------------\n\nInstallation Target:  ${DISK}\n\n[  WARNING  ]\nContinuing will PARTITION and FORMAT the disk, permanently ERASING ALL DATA.\n\nAre you absolutely sure you want to begin the installation?" 24 78 3>&1 1>&2 2>&3); then
@@ -554,17 +591,14 @@ if [[ ! -d "/sys/firmware/efi" ]]; then
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"; exit 1; fi
 fi
 
-# Only create a swap FILE if LVM is not used and user wants swap
 if [[ "${USE_SWAP}" == "yes" && "${FS}" != "lvm" && "${FS}" != "lvm_on_luks" ]]; then
-    TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
-    if [[ $TOTAL_MEM -lt 8000000 ]]; then
-        echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
-        dd if=/dev/zero of=/mnt/swap/swapfile bs=1M count=2048 status=progress
-        chmod 600 /mnt/swap/swapfile
-        mkswap /mnt/swap/swapfile
-        swapon /mnt/swap/swapfile
-        echo "/swap/swapfile none swap defaults 0 0" >> /mnt/etc/fstab
-    fi
+    echo -e "${BYellow}Creating a ${SWAP_SIZE_GB}GB swap file as requested...${Color_Off}"
+    mkdir -p /mnt/swap
+    dd if=/dev/zero of=/mnt/swap/swapfile bs=1M count=${SWAP_FILE_SIZE_MB} status=progress
+    chmod 600 /mnt/swap/swapfile
+    mkswap /mnt/swap/swapfile
+    swapon /mnt/swap/swapfile
+    echo "/swap/swapfile none swap defaults 0 0" >> /mnt/etc/fstab
 fi
 
 arch-chroot /mnt /bin/bash -c "FS='${FS}' ENCRYPTED_PARTITION_UUID='${ENCRYPTED_PARTITION_UUID}' /bin/bash" <<EOF
