@@ -121,6 +121,16 @@ pacman_check() {
     fi
 }
 
+check_internet() {
+    echo -e "${BGreen}Checking for internet connectivity...${Color_Off}"
+    if ! curl -sL --connect-timeout 5 https://archlinux.org > /dev/null; then
+        echo -e "${BRed}ERROR: No internet connection detected.${Color_Off}"
+        echo -e "${BYellow}Please connect to the internet (e.g., using iwctl) and try again. Exiting.${Color_Off}"
+        exit 1
+    fi
+    echo -e "${BGreen}Internet connection confirmed.${Color_Off}"
+}
+
 background_checks() {
     root_check
     arch_check
@@ -333,6 +343,8 @@ else
     exit 1
 fi
 
+check_internet
+
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
 iso=$(curl -4 ifconfig.io/country_code)
 timedatectl set-ntp true
@@ -348,8 +360,10 @@ echo -e "${BCyan}---------------------------------------------------------------
 -------------------------------------------------------------------------${Color_Off}"
 reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
 if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-    echo -e "${BRed}Warning: Reflector failed. Restoring original mirrorlist.${Color_Off}"
-    cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
+    echo -e "${BRed}Warning: Reflector failed to find enough fast mirrors for your country.${Color_Off}"
+    echo -e "${BRed}Falling back to a global mirror list.${Color_Off}"
+    cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
+    reflector --latest 20 --sort rate --save /etc/pacman.d/mirrorlist
 fi
 
 if [ ! -d "/mnt" ]; then
@@ -359,17 +373,22 @@ fi
 echo -e "${BGreen}Installing Prerequisites...${Color_Off}"
 pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
 
-echo -e "${BGreen}Formatting Disk...${Color_Off}"
+echo -e "${BGreen}Preparing Target Disk: ${DISK}...${Color_Off}"
 umount -A --recursive /mnt
+echo -e "${BCyan}  -> Wiping partition table...${Color_Off}"
 sgdisk -Z "${DISK}"
 if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to wipe partition table on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
+echo -e "${BCyan}  -> Creating new GPT label...${Color_Off}"
 sgdisk -a 2048 -o "${DISK}"
 if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create new GPT label on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
 
+echo -e "${BCyan}  -> Creating BIOS boot partition (1MB)...${Color_Off}"
 sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
 if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create BIOS boot partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
+echo -e "${BCyan}  -> Creating EFI boot partition (1GB)...${Color_Off}"
 sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
 if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create EFI boot partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
+echo -e "${BCyan}  -> Creating root partition (remaining space)...${Color_Off}"
 sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
 if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create root partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
 
@@ -407,27 +426,35 @@ else
 fi
 
 if [[ "${FS}" == "btrfs" ]]; then
+    echo -e "${BCyan}  -> Formatting EFI partition as FAT32...${Color_Off}"
     mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting root partition as BTRFS...${Color_Off}"
     mkfs.btrfs -f "${partition3}"
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create btrfs filesystem on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
     mount -t btrfs "${partition3}" /mnt
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount ${partition3}. Exiting.${Color_Off}"; exit 1; fi
     subvolumesetup
 elif [[ "${FS}" == "ext4" ]]; then
+    echo -e "${BCyan}  -> Formatting EFI partition as FAT32...${Color_Off}"
     mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting root partition as EXT4...${Color_Off}"
     mkfs.ext4 -F "${partition3}"
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create ext4 filesystem on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
     mount -t ext4 "${partition3}" /mnt
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount ${partition3}. Exiting.${Color_Off}"; exit 1; fi
 elif [[ "${FS}" == "luks" ]]; then
+    echo -e "${BCyan}  -> Formatting EFI partition as FAT32...${Color_Off}"
     mkfs.fat -F32 "${partition2}"
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Creating LUKS encrypted container...${Color_Off}"
     echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to format LUKS container on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Opening LUKS container...${Color_Off}"
     echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to open LUKS container on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting LUKS container as BTRFS...${Color_Off}"
     mkfs.btrfs /dev/mapper/ROOT
     if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create btrfs filesystem on LUKS container. Exiting.${Color_Off}"; exit 1; fi
     mount -t btrfs /dev/mapper/ROOT /mnt
@@ -454,7 +481,11 @@ if ! grep -qs '/mnt' /proc/mounts; then
     reboot now
 fi
 
-echo -e "${BGreen}Installing Arch Linux on Main Drive... This may take a while.${Color_Off}"
+echo -e "${BYellow}-------------------------------------------------------------------------${Color_Off}"
+echo -e "${BGreen}Installing Arch Linux base system via Pacstrap...${Color_Off}"
+echo -e "${BYellow}This is the longest step and can take several minutes depending on your internet speed.${Color_Off}"
+echo -e "${BYellow}Please be patient, the script is working.${Color_Off}"
+echo -e "${BYellow}-------------------------------------------------------------------------${Color_Off}"
 PKGS="base base-devel linux-lts linux-firmware"
 if [[ -d "/sys/firmware/efi" ]]; then
     PKGS+=" efibootmgr"
