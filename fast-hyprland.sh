@@ -3,17 +3,15 @@
 # ==============================================================================
 # Hyprland Dotfiles Installer Script
 #
-# You should run this script after the archfast installation 
-# Reboot the Arch ISO installation
-# log in as $USERNAME$ then run ./fast-hyprland.sh
+# It should be run after a base Arch Linux installation.
 #
-# Author: CtorW - Github - Thanks!
+# Original Author: CtorW - Github
 # ==============================================================================
-# tput for the compatible in arrow keys function :> 
-if tput setaf 1 >/dev/null 2>&1; then
 
+set -euo pipefail
+
+if tput setaf 1 >/dev/null 2>&1; then
     Color_Off="$(tput sgr0)"
-    Black="$(tput setaf 0)"
     Red="$(tput setaf 1)"
     Green="$(tput setaf 2)"
     Yellow="$(tput setaf 3)"
@@ -21,9 +19,6 @@ if tput setaf 1 >/dev/null 2>&1; then
     Purple="$(tput setaf 5)"
     Cyan="$(tput setaf 6)"
     White="$(tput setaf 7)"
-
-
-    BBlack="$(tput bold; tput setaf 0)"
     BRed="$(tput bold; tput setaf 1)"
     BGreen="$(tput bold; tput setaf 2)"
     BYellow="$(tput bold; tput setaf 3)"
@@ -31,18 +26,10 @@ if tput setaf 1 >/dev/null 2>&1; then
     BPurple="$(tput bold; tput setaf 5)"
     BCyan="$(tput bold; tput setaf 6)"
     BWhite="$(tput bold; tput setaf 7)"
-    
-    BIBlack="$(tput bold; tput setaf 8)"
-    BIRed="$(tput bold; tput setaf 9)"
-    BIGreen="$(tput bold; tput setaf 10)"
-    BIYellow="$(tput bold; tput setaf 11)"
     BIBlue="$(tput bold; tput setaf 12)"
-    BIPurple="$(tput bold; tput setaf 13)"
     BICyan="$(tput bold; tput setaf 14)"
-    BIWhite="$(tput bold; tput setaf 15)"
 else
     Color_Off="\033[0m"
-    Black="\033[0;30m"
     Red="\033[0;31m"
     Green="\033[0;32m"
     Yellow="\033[0;33m"
@@ -50,8 +37,6 @@ else
     Purple="\033[0;35m"
     Cyan="\033[0;36m"
     White="\033[0;37m"
-
-    BBlack="\033[1;30m"
     BRed="\033[1;31m"
     BGreen="\033[1;32m"
     BYellow="\033[1;33m"
@@ -59,20 +44,26 @@ else
     BPurple="\033[1;35m"
     BCyan="\033[1;36m"
     BWhite="\033[1;37m"
-    
-    BIBlack="\033[1;90m"
-    BIRed="\033[1;91m"
-    BIGreen="\033[1;92m"
-    BIYellow="\033[1;93m"
     BIBlue="\033[1;94m"
-    BIPurple="\033[1;95m"
     BICyan="\033[1;96m"
-    BIWhite="\033[1;97m"
 fi
 
 # ==============================================================================
 # Logo :> Thanks to HyDE for the Arch logo :>
 # ==============================================================================
+msg() {
+    echo -e "${BGreen}==>${Color_Off} ${BWhite}$*${Color_Off}"
+}
+
+warning() {
+    echo -e "${BYellow}==> WARNING:${Color_Off} ${White}$*${Color_Off}"
+}
+
+error() {
+    echo -e "${BRed}==> ERROR:${Color_Off} ${Red}$*${Color_Off}" >&2
+    exit 1
+}
+
 logo() {
     echo -e "${BICyan}
         .
@@ -83,59 +74,25 @@ logo() {
    /.-'   '-.\                |___|_|                    
     ${Color_Off}"
 }
-  
-# ==============================================================================
-# New `whiptail` based menu function
-# ==============================================================================
-show_whiptail_menu() {
-    local options=()
-    local item_list=("HyDE" "end-4's dots-hyprland" "Lunaris-Project-Hyprluna" "Caelestia-dots" "KooL's Arch - Hyprland" "Exit")
-    
-    for item in "${item_list[@]}"; do
-        options+=("$item" "")
-    done
-    
-    local choice=$(whiptail --title "Hyprland Dotfiles Installer" --menu "Please select a dotfiles configuration to install:" 20 60 12 "${options[@]}" 3>&1 1>&2 2>&3)
-    
-    echo "$choice"
-}
 
 check_dependencies() {
-    if ! command -v pacman &> /dev/null; then
-        echo -e "${BIRed}Error: 'pacman' is not found. This script is designed for Arch Linux.${Color_Off}"
-        exit 1
+    msg "Checking for required dependencies..."
+    if ! command -v pacman &>/dev/null; then
+        error "'pacman' not found. This script is intended for Arch-based distributions."
     fi
     
-    local dependencies=("git" "curl" "fish" "whiptail")
-    local install_list=()
+    local missing_deps=()
+    local dependencies=("git" "curl" "whiptail")
     for dep in "${dependencies[@]}"; do
-        if ! command -v "$dep" &> /dev/null; then
-            install_list+=("$dep")
+        if ! command -v "$dep" &>/dev/null; then
+            missing_deps+=("$dep")
         fi
     done
-    
-    if [ ${#install_list[@]} -gt 0 ]; then
-        echo -e "${BYellow}The following dependencies are missing: ${install_list[*]}${Color_Off}"
-        echo -e "${BYellow}Attempting to install them with pacman...${Color_Off}"
-        
-        sudo pacman -S --noconfirm "${install_list[@]}"
-        if [ $? -ne 0 ]; then
-            echo -e "${BIRed}Error: Failed to install one or more dependencies. Please install them manually.${Color_Off}"
-            exit 1
-        fi
-        
-        echo -e "${BIGreen}Dependencies successfully installed!${Color_Off}"
-    fi
-}
 
-install_caelestia_dependencies() {
-    echo -e "${BYellow}Installing Caelestia-specific dependencies: pipewire, wireplumber, pipewire-pulse...${Color_Off}"
-    sudo pacman -S --noconfirm pipewire wireplumber pipewire-pulse
-    if [ $? -ne 0 ]; then
-        echo -e "${BIRed}Error: Failed to install one or more Caelestia dependencies. Please install them manually.${Color_Off}"
-        exit 1
+    if [ ${#missing_deps[@]} -gt 0 ]; then
+        warning "Missing dependencies: ${missing_deps[*]}. Attempting to install."
+        sudo pacman -S --noconfirm "${missing_deps[@]}"
     fi
-    echo -e "${BIGreen}Caelestia-specific dependencies successfully installed!${Color_Off}"
 }
 
 show_welcome_screen() {
@@ -143,7 +100,85 @@ show_welcome_screen() {
     logo
     echo -e "${BWhite}=========================================="
     echo "  Hyprland Dotfiles Installation Menu"
+    echo -e "==========================================${Color_Off}"
+}
+
+show_whiptail_menu() {
+    local options=()
+    local item_list=(
+        "HyDE"
+        "end-4's dots-hyprland"
+        "Lunaris-Project-Hyprluna"
+        "Caelestia-dots"
+        "KooL's Arch - Hyprland"
+        "Exit"
+    )
+
+    for item in "${item_list[@]}"; do
+        options+=("$item" "")
+    done
+
+    whiptail --title "Hyprland Dotfiles Installer" \
+             --menu "Please select a dotfiles configuration to install:" 20 60 12 \
+             "${options[@]}" 3>&1 1>&2 2>&3
+}
+
+install_from_repo() {
+    local name="$1"
+    local repo_url="$2"
+    local clone_dir="$3"
+    local install_cmd="$4"
+
+    msg "Installing $name..."
+
+    if [ -d "$clone_dir" ]; then
+        warning "Directory '$clone_dir' already exists. Skipping clone."
+    else
+        msg "Cloning $repo_url into $clone_dir..."
+        git clone --depth 1 "$repo_url" "$clone_dir"
+    fi
+
+    cd "$clone_dir" || error "Failed to enter directory '$clone_dir'. Installation aborted."
+
+    msg "Running install command: '$install_cmd'..."
+    bash -c "$install_cmd"
+
+    msg "$name installation complete. You may need to reboot or log out."
+    read -p "Press Enter to continue..."
+}
+
+install_caelestia() {
+    msg "Installing Caelestia-dots..."
+
+    msg "Installing Caelestia-specific dependencies..."
+    sudo pacman -S --noconfirm fish pipewire wireplumber pipewire-pulse
+
+    local clone_dir="$HOME/.local/share/caelestia"
+    local repo_url="https://github.com/caelestia-dots/caelestia.git"
+    
+    if [ -d "$clone_dir" ]; then
+        warning "Directory '$clone_dir' already exists. Skipping clone."
+    else
+        msg "Cloning $repo_url into $clone_dir..."
+        git clone "$repo_url" "$clone_dir"
+    fi
+
+    echo -e "${BWhite}=========================================="
+    echo " Caelestia Installation Options "
     echo "==========================================${Color_Off}"
+    echo -e "${White}The install.fish script can be run with the following options:${Color_Off}"
+    echo -e "  ${Cyan}./install.fish [-h] [--noconfirm] [--spotify] [--vscode] [--discord] [--paru]${Color_Off}"
+    echo
+    echo -e "${White}Example: to install without confirmation and with Spotify support, enter:${Color_Off}"
+    echo -e "  ${Cyan}--noconfirm --spotify${Color_Off}"
+
+    read -p "Enter arguments for install.fish script (or press Enter for default): " install_args
+
+    msg "Running install.fish with arguments: '$install_args'"
+    fish "$clone_dir/install.fish" $install_args
+
+    msg "Caelestia-dots installation complete. You may need to reboot or log out."
+    read -p "Press Enter to continue..."
 }
 
 main() {
@@ -151,79 +186,39 @@ main() {
 
     while true; do
         show_welcome_screen
-        
-        choice=$(show_whiptail_menu)
-        
-        if [ $? != 0 ]; then
-            echo -e "${BWhite}Exiting script. Goodbye :>${Color_Off}"
-            exit 0
-        fi
+        choice=$(show_whiptail_menu) || { msg "Exiting script. Goodbye! :>"; exit 0; }
 
         case "$choice" in
             "HyDE")
-                echo -e "${BIGreen}Installing HyDE...${Color_Off}"
-                git clone --depth 1 https://github.com/HyDE-Project/HyDE ~/HyDE
-                cd ~/HyDE/Scripts || { echo -e "${BIRed}Error: Failed to enter ~/HyDE/Scripts directory.${Color_Off}"; exit 1; }
-                ./install.sh
-                echo -e "${BIGreen}HyDE installation complete. You may need to reboot or log out.${Color_Off}"
-                read -p "Press Enter to continue..."
+                install_from_repo "HyDE" \
+                    "https://github.com/HyDE-Project/HyDE" \
+                    "$HOME/HyDE" \
+                    "./install.sh"
                 ;;
             "end-4's dots-hyprland")
-                echo -e "${BIGreen}Installing end-4's dots-hyprland...${Color_Off}"
-                git clone https://github.com/end-4/dots-hyprland
-                cd dots-hyprland || { echo -e "${BIRed}Error: Failed to enter dots-hyprland directory.${Color_Off}"; exit 1; }
-                ./install.sh
-                echo -e "${BIGreen}end-4's dots-hyprland installation complete. You may need to reboot or log out.${Color_Off}"
-                read -p "Press Enter to continue..."
+                install_from_repo "end-4's dots-hyprland" \
+                    "https://github.com/end-4/dots-hyprland" \
+                    "$HOME/dots-hyprland" \
+                    "./install.sh"
                 ;;
             "Lunaris-Project-Hyprluna")
-                echo -e "${BIGreen}Installing Lunaris-Project-Hyprluna...${Color_Off}"
-                git clone https://github.com/Lunaris-Project/HyprLuna.git ~/HyprLuna
-                echo -e "${BIGreen}Running Lunaris-script...${Color_Off}"
-                cd ~/HyprLuna || { echo -e "${BIRed}Error: Failed to enter ~/HyprLuna directory.${Color_Off}"; exit 1; }
-                chmod +x installer.sh && ./installer.sh -m
-                echo -e "${BIGreen}Lunaris-Project-Hyprluna installation complete. You may need to reboot or log out.${Color_Off}"
-                read -p "Press Enter to continue..."
+                install_from_repo "Lunaris-Project-Hyprluna" \
+                    "https://github.com/Lunaris-Project/HyprLuna.git" \
+                    "$HOME/HyprLuna" \
+                    "chmod +x installer.sh && ./installer.sh -m"
                 ;;
             "Caelestia-dots")
-                echo -e "${BIGreen}Installing Caelestia-dots...${Color_Off}"
-                install_caelestia_dependencies
-                
-                git clone https://github.com/caelestia-dots/caelestia.git ~/.local/share/caelestia
-                echo -e "${BYellow}Caelestia-dots repository cloned to ~/.local/share/caelestia${Color_Off}"
-                
-                echo -e "${BWhite}=========================================="
-                echo " Caelestia Installation Options "
-                echo "==========================================${Color_Off}"
-                echo -e "${BIWhite}The install.fish script can be run with the following options:${Color_Off}"
-                echo -e "  ${BCyan}./install.fish [-h] [--noconfirm] [--spotify] [--vscode] [--discord] [--paru]${Color_Off}"
-                echo
-                echo -e "${BIWhite}For example, to install without confirmation and include Spotify, you can run:${Color_Off}"
-                echo -e "  ${BCyan}fish ~/.local/share/caelestia/install.fish --noconfirm --spotify${Color_Off}"
-                
-                read -p "Enter any arguments you wish to pass to the install.fish script (e.g., --noconfirm --spotify), or press Enter to skip: " install_args
-                
-                echo -e "${BYellow}Running install.fish with arguments: $install_args${Color_Off}"
-                fish ~/.local/share/caelestia/install.fish $install_args
-                
-                echo -e "${BIGreen}Caelestia-dots installation complete. You may need to reboot or log out.${Color_Off}"
-                read -p "Press Enter to continue..."
+                install_caelestia
                 ;;
             "KooL's Arch - Hyprland")
-                echo -e "${BIGreen}KooL's Arch - Hyprland...${Color_Off}"
-                git clone --depth=1 https://github.com/JaKooLit/Arch-Hyprland.git ~/Arch-Hyprland
-                cd ~/Arch-Hyprland || { echo -e "${BIRed}Error: Failed to enter KooL's Arch-Hyprland directory.${Color_Off}"; exit 1; }
-                chmod +x install.sh && ./install.sh
-                echo -e "${BIGreen}KooL's Arch installation complete. You may need to reboot or log out.${Color_Off}"
-                read -p "Press Enter to continue..."
+                install_from_repo "KooL's Arch - Hyprland" \
+                    "https://github.com/JaKooLit/Arch-Hyprland.git" \
+                    "$HOME/Arch-Hyprland" \
+                    "chmod +x install.sh && ./install.sh"
                 ;;
             "Exit")
-                echo -e "${BWhite}Exiting script. Goodbye :>${Color_Off}"
+                msg "Exiting script. Goodbye! :>"
                 exit 0
-                ;;
-            *)
-                echo -e "${BIRed}Invalid selection. Please use the arrow keys and Enter.${Color_Off}"
-                read -p "Press Enter to continue..."
                 ;;
         esac
     done
