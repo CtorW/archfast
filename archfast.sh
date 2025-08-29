@@ -121,6 +121,16 @@ pacman_check() {
     fi
 }
 
+check_internet() {
+    echo -e "${BGreen}Checking for internet connectivity...${Color_Off}"
+    if ! curl -sL --connect-timeout 5 https://archlinux.org > /dev/null; then
+        echo -e "${BRed}ERROR: No internet connection detected.${Color_Off}"
+        echo -e "${BYellow}Please connect to the internet (e.g., using iwctl) and try again. Exiting.${Color_Off}"
+        exit 1
+    fi
+    echo -e "${BGreen}Internet connection confirmed.${Color_Off}"
+}
+
 background_checks() {
     root_check
     arch_check
@@ -185,15 +195,17 @@ diskpart () {
 }
 
 filesystem () {
-    FS_CHOICE=$(whiptail --title "Filesystem Selection" --radiolist \
-    "Choose the filesystem for your root partition.\n(Use arrow keys and SPACE to select)" 15 78 3 \
+    FS_CHOICE=$(whiptail --title "Filesystem & Partition Scheme" --radiolist \
+    "Choose the filesystem and layout for your root partition.\n(Use arrow keys and SPACE to select)" 15 78 5 \
     "btrfs" "Modern filesystem with compression & snapshots" ON \
     "ext4"  "Traditional, stable, and widely-used" OFF \
-    "luks"  "Btrfs with full-disk encryption for security" OFF 3>&1 1>&2 2>&3)
+    "lvm"   "Flexible LVM layout with ext4 volumes" OFF \
+    "luks"  "Btrfs with full-disk encryption for security" OFF \
+    "lvm_on_luks" "LVM with ext4 volumes inside an encrypted container" OFF 3>&1 1>&2 2>&3)
     if [ $? != 0 ]; then echo -e "${BRed}User canceled at Filesystem Selection. Exiting.${Color_Off}"; exit 1; fi
     export FS=${FS_CHOICE}
     
-    if [[ "${FS}" == "luks" ]]; then
+    if [[ "${FS}" == "luks" || "${FS}" == "lvm_on_luks" ]]; then
         local luks_match=false
         while [ "$luks_match" = false ]; do
             LUKS_PASSWORD=$(whiptail --title "Set Encryption Password" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
@@ -333,6 +345,8 @@ else
     exit 1
 fi
 
+check_internet
+
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
 iso=$(curl -4 ifconfig.io/country_code)
 timedatectl set-ntp true
@@ -348,8 +362,10 @@ echo -e "${BCyan}---------------------------------------------------------------
 -------------------------------------------------------------------------${Color_Off}"
 reflector -a 48 -c "$iso" --score 5 -f 5 -l 20 --sort rate --save /etc/pacman.d/mirrorlist
 if [[ $(grep -c "Server =" /etc/pacman.d/mirrorlist) -lt 5 ]]; then
-    echo -e "${BRed}Warning: Reflector failed. Restoring original mirrorlist.${Color_Off}"
-    cp /etc/pacman.d/mirrorlist.bak /etc/pacman.d/mirrorlist
+    echo -e "${BRed}Warning: Reflector failed to find enough fast mirrors for your country.${Color_Off}"
+    echo -e "${BRed}Falling back to a global mirror list.${Color_Off}"
+    cp /etc/pacman.d/mirrorlist.backup /etc/pacman.d/mirrorlist
+    reflector --latest 20 --sort rate --save /etc/pacman.d/mirrorlist
 fi
 
 if [ ! -d "/mnt" ]; then
@@ -357,21 +373,34 @@ if [ ! -d "/mnt" ]; then
 fi
 
 echo -e "${BGreen}Installing Prerequisites...${Color_Off}"
-pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
+pacman -S --noconfirm --needed gptfdisk btrfs-progs lvm2 glibc
 
-echo -e "${BGreen}Formatting Disk...${Color_Off}"
+echo -e "${BGreen}Preparing Target Disk: ${DISK}...${Color_Off}"
 umount -A --recursive /mnt
+echo -e "${BCyan}  -> Wiping partition table...${Color_Off}"
 sgdisk -Z "${DISK}"
 if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to wipe partition table on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
+echo -e "${BCyan}  -> Creating new GPT label...${Color_Off}"
 sgdisk -a 2048 -o "${DISK}"
 if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create new GPT label on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
 
+echo -e "${BCyan}  -> Creating BIOS boot partition (1MB)...${Color_Off}"
 sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
-if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create BIOS boot partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create BIOS boot partition. Exiting.${Color_Off}"; exit 1; fi
+echo -e "${BCyan}  -> Creating EFI boot partition (1GB)...${Color_Off}"
 sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
-if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create EFI boot partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
-sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
-if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create root partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create EFI boot partition. Exiting.${Color_Off}"; exit 1; fi
+
+if [[ "${FS}" == "lvm" || "${FS}" == "lvm_on_luks" ]]; then
+    echo -e "${BCyan}  -> Creating LVM container partition (remaining space)...${Color_Off}"
+    [[ "${FS}" == "lvm" ]] && p_type="8e00" || p_type="8300"
+    sgdisk -n 3::-0 --typecode=3:${p_type} --change-name=3:'LVMVOL' "${DISK}"
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create LVM container partition. Exiting.${Color_Off}"; exit 1; fi
+else
+    echo -e "${BCyan}  -> Creating root partition (remaining space)...${Color_Off}"
+    sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create root partition. Exiting.${Color_Off}"; exit 1; fi
+fi
 
 if [[ ! -d "/sys/firmware/efi" ]]; then
     sgdisk -A 1:set:2 "${DISK}"
@@ -407,33 +436,74 @@ else
 fi
 
 if [[ "${FS}" == "btrfs" ]]; then
-    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
-    mkfs.btrfs -f "${partition3}"
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create btrfs filesystem on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
-    mount -t btrfs "${partition3}" /mnt
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount ${partition3}. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting EFI partition as FAT32...${Color_Off}"
+    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting root partition as BTRFS...${Color_Off}"
+    mkfs.btrfs -f "${partition3}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    mount -t btrfs "${partition3}" /mnt; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
     subvolumesetup
 elif [[ "${FS}" == "ext4" ]]; then
-    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
-    mkfs.ext4 -F "${partition3}"
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create ext4 filesystem on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
-    mount -t ext4 "${partition3}" /mnt
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount ${partition3}. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting EFI partition as FAT32...${Color_Off}"
+    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting root partition as EXT4...${Color_Off}"
+    mkfs.ext4 -F "${partition3}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    mount -t ext4 "${partition3}" /mnt; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
 elif [[ "${FS}" == "luks" ]]; then
-    mkfs.fat -F32 "${partition2}"
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
-    echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to format LUKS container on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
-    echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to open LUKS container on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
-    mkfs.btrfs /dev/mapper/ROOT
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create btrfs filesystem on LUKS container. Exiting.${Color_Off}"; exit 1; fi
-    mount -t btrfs /dev/mapper/ROOT /mnt
-    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount LUKS container. Exiting.${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting EFI partition as FAT32...${Color_Off}"
+    mkfs.fat -F32 "${partition2}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Creating LUKS encrypted container...${Color_Off}"
+    echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Opening LUKS container...${Color_Off}"
+    echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Formatting LUKS container as BTRFS...${Color_Off}"
+    mkfs.btrfs /dev/mapper/ROOT; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    mount -t btrfs /dev/mapper/ROOT /mnt; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
     subvolumesetup
     ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
+elif [[ "${FS}" == "lvm" || "${FS}" == "lvm_on_luks" ]]; then
+    echo -e "${BCyan}  -> Formatting EFI partition as FAT32...${Color_Off}"
+    mkfs.fat -F32 -n "EFIBOOT" "${partition2}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    
+    LVM_TARGET="${partition3}"
+    if [[ "${FS}" == "lvm_on_luks" ]]; then
+        echo -e "${BCyan}  -> Creating LUKS encrypted container...${Color_Off}"
+        echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+        echo -e "${BCyan}  -> Opening LUKS container...${Color_Off}"
+        echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" cryptlvm -; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+        LVM_TARGET="/dev/mapper/cryptlvm"
+        ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
+    fi
+
+    echo -e "${BCyan}  -> Setting up LVM on ${LVM_TARGET}...${Color_Off}"
+    pvcreate "${LVM_TARGET}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    vgcreate arch-vg "${LVM_TARGET}"; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    
+    if [[ "${USE_SWAP}" == "yes" ]]; then
+        TOTAL_MEM_GB=$(($(grep -i 'memtotal' /proc/meminfo | grep -o '[[:digit:]]*') / 1024 / 1024))
+        SWAP_SIZE=$((TOTAL_MEM_GB > 8 ? 8 : TOTAL_MEM_GB))
+        echo -e "${BCyan}  -> Creating ${SWAP_SIZE}G LVM swap volume...${Color_Off}"
+        lvcreate -L ${SWAP_SIZE}G arch-vg -n swap; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    fi
+    
+    echo -e "${BCyan}  -> Creating 40G LVM root volume...${Color_Off}"
+    lvcreate -L 40G arch-vg -n root; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    echo -e "${BCyan}  -> Creating LVM home volume (using remaining space)...${Color_Off}"
+    lvcreate -l 100%FREE arch-vg -n home; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+
+    echo -e "${BCyan}  -> Formatting LVM volumes with ext4...${Color_Off}"
+    mkfs.ext4 /dev/arch-vg/root; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    mkfs.ext4 /dev/arch-vg/home; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    if [[ "${USE_SWAP}" == "yes" ]]; then
+        mkswap /dev/arch-vg/swap; if [ $? -ne 0 ]; then echo -e "${BRed}ERR!${Color_Off}"; exit 1; fi
+    fi
+
+    echo -e "${BCyan}  -> Mounting LVM volumes...${Color_Off}"
+    mount /dev/arch-vg/root /mnt
+    mkdir -p /mnt/home
+    mount /dev/arch-vg/home /mnt/home
+    if [[ "${USE_SWAP}" == "yes" ]]; then
+        swapon /dev/arch-vg/swap
+    fi
 fi
 
 BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
@@ -454,7 +524,11 @@ if ! grep -qs '/mnt' /proc/mounts; then
     reboot now
 fi
 
-echo -e "${BGreen}Installing Arch Linux on Main Drive... This may take a while.${Color_Off}"
+echo -e "${BYellow}-------------------------------------------------------------------------${Color_Off}"
+echo -e "${BGreen}Installing Arch Linux base system via Pacstrap...${Color_Off}"
+echo -e "${BYellow}This is the longest step and can take several minutes depending on your internet speed.${Color_Off}"
+echo -e "${BYellow}Please be patient, the script is working.${Color_Off}"
+echo -e "${BYellow}-------------------------------------------------------------------------${Color_Off}"
 PKGS="base base-devel linux-lts linux-firmware"
 if [[ -d "/sys/firmware/efi" ]]; then
     PKGS+=" efibootmgr"
@@ -462,8 +536,7 @@ fi
 pacstrap /mnt $PKGS --noconfirm --needed
 if [ $? -ne 0 ]; then
     echo -e "${BRed}ERROR: Pacstrap failed to install the base system.${Color_Off}"
-    echo -e "${BYellow}This is often due to a network issue or bad mirrors.${Color_Off}"
-    echo -e "${BYellow}Check archsetup.txt for detailed logs. Exiting.${Color_Off}"
+    echo -e "${BYellow}This is often due to a network issue or bad mirrors. Exiting.${Color_Off}"
     exit 1
 fi
 
@@ -478,36 +551,23 @@ echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
     echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
     grub-install --boot-directory=/mnt/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
-        exit 1
-    fi
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"; exit 1; fi
 fi
 
-if [[ "${USE_SWAP}" == "yes" ]]; then
-    echo -e "${BGreen}Checking for low memory systems (<8G) for swap file...${Color_Off}"
+# Only create a swap FILE if LVM is not used and user wants swap
+if [[ "${USE_SWAP}" == "yes" && "${FS}" != "lvm" && "${FS}" != "lvm_on_luks" ]]; then
     TOTAL_MEM=$(cat /proc/meminfo | grep -i 'memtotal' | grep -o '[[:digit:]]*')
     if [[ $TOTAL_MEM -lt 8000000 ]]; then
         echo -e "${BYellow}System has less than 8GB RAM. Creating a 2GB swap file.${Color_Off}"
-        mkdir -p /mnt/opt/swap
-        if findmnt -n -o FSTYPE /mnt | grep -q btrfs; then
-            chattr +C /mnt/opt/swap
-        fi
-        dd if=/dev/zero of=/mnt/opt/swap/swapfile bs=1M count=2048 status=progress
-        chmod 600 /mnt/opt/swap/swapfile
-        chown root /mnt/opt/swap/swapfile
-        mkswap /mnt/opt/swap/swapfile
-        swapon /mnt/opt/swap/swapfile
-        echo "/opt/swap/swapfile  none  swap  sw  0  0" >> /mnt/etc/fstab
-    else
-        echo -e "${BGreen}System has 8GB or more RAM. Skipping swap file creation as per script's logic.${Color_Off}"
+        dd if=/dev/zero of=/mnt/swap/swapfile bs=1M count=2048 status=progress
+        chmod 600 /mnt/swap/swapfile
+        mkswap /mnt/swap/swapfile
+        swapon /mnt/swap/swapfile
+        echo "/swap/swapfile none swap defaults 0 0" >> /mnt/etc/fstab
     fi
-else
-    echo -e "${BYellow}User opted out of swap creation. Skipping.${Color_Off}"
 fi
 
-
-arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
+arch-chroot /mnt /bin/bash -c "FS='${FS}' ENCRYPTED_PARTITION_UUID='${ENCRYPTED_PARTITION_UUID}' /bin/bash" <<EOF
 set -e
 
 echo "root:${PASSWORD}" | chpasswd
@@ -622,8 +682,18 @@ echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
 chown $USERNAME:$USERNAME /home/$USERNAME/fast-hyprland.sh
 chmod +x /home/$USERNAME/fast-hyprland.sh
 
-if [[ ${FS} == "luks" ]]; then
-    sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
+echo -ne "
+${BGreen}-------------------------------------------------------------------------
+                             Configuring bootloader initramfs
+-------------------------------------------------------------------------${Color_Off}
+"
+# Add hooks for encryption and LVM if needed
+if [[ \${FS} == "luks" ]]; then
+    sed -i 's/HOOKS=(base udev/HOOKS=(base udev encrypt/' /etc/mkinitcpio.conf
+elif [[ \${FS} == "lvm" ]]; then
+    sed -i 's/HOOKS=(base udev/HOOKS=(base udev lvm2/' /etc/mkinitcpio.conf
+elif [[ \${FS} == "lvm_on_luks" ]]; then
+    sed -i 's/HOOKS=(base udev/HOOKS=(base udev encrypt lvm2/' /etc/mkinitcpio.conf
 fi
 mkinitcpio -p linux-lts
 
@@ -653,24 +723,16 @@ ${BGreen}-----------------------------------------------------------------------
                    Creating Grub Boot Menu
 -------------------------------------------------------------------------${Color_Off}
 "
-if [[ "${FS}" == "luks" ]]; then
-    sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
+# Update GRUB command line for encrypted systems
+if [[ "\${FS}" == "luks" ]]; then
+    sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=\${ENCRYPTED_PARTITION_UUID}:ROOT root=/dev/mapper/ROOT %g" /etc/default/grub
+elif [[ "\${FS}" == "lvm_on_luks" ]]; then
+    sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"%GRUB_CMDLINE_LINUX_DEFAULT=\"cryptdevice=UUID=\${ENCRYPTED_PARTITION_UUID}:cryptlvm root=/dev/mapper/arch--vg-root %g" /etc/default/grub
 fi
 sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
 
 echo -e "${BGreen}Updating grub...${Color_Off}"
 grub-mkconfig -o /boot/grub/grub.cfg
-
-echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
-if [ ! -f /boot/grub/grub.cfg ]; then
-    echo -e "${BRed}FATAL: grub.cfg was not created.${Color_Off}"
-    exit 1
-fi
-if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
-    echo -e "${BRed}FATAL: grub.cfg does not contain an Arch Linux entry.${Color_Off}"
-    exit 1
-fi
-echo -e "${BGreen}Grub configuration complete!${Color_Off}"
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
