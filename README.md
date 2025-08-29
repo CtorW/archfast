@@ -97,7 +97,12 @@ Functions: Will install missing dependencies. (eg. fish, curl, wget)
 
 ```bash
 [Settings]
-gtk-icon-theme-name=Papirus-Dark
+gtk-theme-name=[your gtk theme]
+gtk-icon-theme-name=[your icons name]
+gtk-font-name=[your font name]
+gtk-cursor-theme-name=[your cursor name]
+gtk-cursor-theme-size=[what u prefer]
+gtk-application-prefer-dark-theme=1nor0
 ```
 ### Caelestia theme config
 ```bash
