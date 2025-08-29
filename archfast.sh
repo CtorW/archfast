@@ -137,16 +137,16 @@ userinfo () {
     
     USERNAME=$(whiptail --title "User Account Setup" --inputbox \
     "Please enter your desired username.\n\n(Use lowercase letters, no spaces. e.g., 'alex')" 10 60 archuser 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Username prompt. Exiting.${Color_Off}"; exit 1; fi
     export USERNAME
 
     local password_match=false
     while [ "$password_match" = false ]; do
         PASSWORD=$(whiptail --title "Set User Password" --passwordbox "Enter a password for user '$USERNAME':" 10 60 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled at Password prompt. Exiting.${Color_Off}"; exit 1; fi
         
         PASSWORD2=$(whiptail --title "Confirm User Password" --passwordbox "Please re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled at Password Confirmation prompt. Exiting.${Color_Off}"; exit 1; fi
 
         if [ "$PASSWORD" == "$PASSWORD2" ]; then
             password_match=true
@@ -158,7 +158,7 @@ userinfo () {
     
     NAME_OF_MACHINE=$(whiptail --title "System Hostname" --inputbox \
     "Please enter a hostname for this machine.\n\n(This is how it will appear on a network. e.g., 'arch-desktop')" 10 60 myarch 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Hostname prompt. Exiting.${Color_Off}"; exit 1; fi
     export NAME_OF_MACHINE
 }
 
@@ -173,7 +173,7 @@ diskpart () {
 
     DISK=$(whiptail --title "Select Target Installation Disk" --menu \
     "Please select the disk to install Arch Linux onto.\n\n[ DANGER ]: All data on the selected disk will be PERMANENTLY DELETED." 20 78 12 "${disk_list[@]}" 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Disk Selection. Exiting.${Color_Off}"; exit 1; fi
     export DISK="/dev/${DISK}"
 
     if (whiptail --title "Storage Optimization" --yesno \
@@ -190,16 +190,16 @@ filesystem () {
     "btrfs" "Modern filesystem with compression & snapshots" ON \
     "ext4"  "Traditional, stable, and widely-used" OFF \
     "luks"  "Btrfs with full-disk encryption for security" OFF 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Filesystem Selection. Exiting.${Color_Off}"; exit 1; fi
     export FS=${FS_CHOICE}
     
     if [[ "${FS}" == "luks" ]]; then
         local luks_match=false
         while [ "$luks_match" = false ]; do
             LUKS_PASSWORD=$(whiptail --title "Set Encryption Password" --passwordbox "Enter a strong password for disk encryption:" 10 60 3>&1 1>&2 2>&3)
-            if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+            if [ $? != 0 ]; then echo -e "${BRed}User canceled at LUKS Password prompt. Exiting.${Color_Off}"; exit 1; fi
             LUKS_PASSWORD2=$(whiptail --title "Confirm Encryption Password" --passwordbox "Re-enter the password to confirm:" 10 60 3>&1 1>&2 2>&3)
-            if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+            if [ $? != 0 ]; then echo -e "${BRed}User canceled at LUKS Password Confirmation. Exiting.${Color_Off}"; exit 1; fi
 
             if [[ "$LUKS_PASSWORD" == "$LUKS_PASSWORD2" ]]; then
                 luks_match=true
@@ -218,12 +218,14 @@ timezone () {
             export TIMEZONE=$TIME_ZONE
             return
         fi
+    else
+        echo -e "${BYellow}Warning: Timezone auto-detection failed. This is likely due to no internet connection.${Color_Off}"
     fi
     
-    echo -e "${BYellow}Warning: Timezone auto-detection failed or was rejected. Please enter it manually.${Color_Off}"
+    echo -e "${BYellow}Please enter your timezone manually.${Color_Off}"
     NEW_TIMEZONE=$(whiptail --title "Manual Timezone Entry" --inputbox \
     "Please enter your timezone.\n(Format: Region/City, e.g., America/New_York, Europe/Paris)" 10 60 "Etc/UTC" 3>&1 1>&2 2>&3)
-    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Manual Timezone Entry. Exiting.${Color_Off}"; exit 1; fi
     export TIMEZONE=$NEW_TIMEZONE
 }
 
@@ -240,7 +242,7 @@ keymap () {
     "br-abnt2" "Brazil" \
     "More..." "Browse all available layouts" 3>&1 1>&2 2>&3)
     
-    if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Keyboard Layout selection. Exiting.${Color_Off}"; exit 1; fi
 
     if [ "$keymap_choice" == "More..." ]; then
         declare -a keymap_list=()
@@ -249,7 +251,7 @@ keymap () {
         done < <(find /usr/share/kbd/keymaps/ -name "*.map.gz" -printf "%f\n" | sed 's/\.map\.gz$//' | sort | xargs -I {} echo "{} ()")
 
         keymap_choice=$(whiptail --title "All Keyboard Layouts" --menu "Select your keyboard layout:" 25 78 15 "${keymap_list[@]}" 3>&1 1>&2 2>&3)
-        if [ $? != 0 ]; then echo -e "${BRed}User canceled. Exiting.${Color_Off}"; exit 1; fi
+        if [ $? != 0 ]; then echo -e "${BRed}User canceled at full Keyboard Layout list. Exiting.${Color_Off}"; exit 1; fi
     fi
 
     echo -e "${BGreen}Keyboard layout set to: ${keymap_choice}${Color_Off}"
@@ -263,6 +265,7 @@ swap_option () {
     else
         export USE_SWAP="no"
     fi
+    if [ $? != 0 ]; then echo -e "${BRed}User canceled at Swap Configuration prompt. Exiting.${Color_Off}"; exit 1; fi
 }
 
 # ==============================================================================
@@ -326,7 +329,7 @@ ${BCyan}------------------------------------------------------------------------
 -------------------------------------------------------------------------${Color_Off}
 "
 else
-    echo -e "${BRed}Installation canceled by user. Exiting.${Color_Off}"
+    echo -e "${BRed}Installation canceled by user at final confirmation. Exiting.${Color_Off}"
     exit 1
 fi
 
@@ -359,11 +362,17 @@ pacman -S --noconfirm --needed gptfdisk btrfs-progs glibc
 echo -e "${BGreen}Formatting Disk...${Color_Off}"
 umount -A --recursive /mnt
 sgdisk -Z "${DISK}"
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to wipe partition table on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
 sgdisk -a 2048 -o "${DISK}"
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create new GPT label on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
 
 sgdisk -n 1::+1M --typecode=1:ef02 --change-name=1:'BIOSBOOT' "${DISK}"
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create BIOS boot partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
 sgdisk -n 2::+1GiB --typecode=2:ef00 --change-name=2:'EFIBOOT' "${DISK}"
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create EFI boot partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
 sgdisk -n 3::-0 --typecode=3:8300 --change-name=3:'ROOT' "${DISK}"
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create root partition on ${DISK}. Exiting.${Color_Off}"; exit 1; fi
+
 if [[ ! -d "/sys/firmware/efi" ]]; then
     sgdisk -A 1:set:2 "${DISK}"
 fi
@@ -383,8 +392,10 @@ subvolumesetup () {
     createsubvolumes
     umount /mnt
     mount -o "${MOUNT_OPTIONS}",subvol=@ "${partition3}" /mnt
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount btrfs root subvolume. Exiting.${Color_Off}"; exit 1; fi
     mkdir -p /mnt/home
     mountallsubvol
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount btrfs home subvolume. Exiting.${Color_Off}"; exit 1; fi
 }
 
 if [[ "${DISK}" =~ "nvme" || "${DISK}" =~ "mmcblk" ]]; then
@@ -397,19 +408,30 @@ fi
 
 if [[ "${FS}" == "btrfs" ]]; then
     mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
     mkfs.btrfs -f "${partition3}"
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create btrfs filesystem on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
     mount -t btrfs "${partition3}" /mnt
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount ${partition3}. Exiting.${Color_Off}"; exit 1; fi
     subvolumesetup
 elif [[ "${FS}" == "ext4" ]]; then
     mkfs.fat -F32 -n "EFIBOOT" "${partition2}"
-    mkfs.ext4 "${partition3}"
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
+    mkfs.ext4 -F "${partition3}"
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create ext4 filesystem on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
     mount -t ext4 "${partition3}" /mnt
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount ${partition3}. Exiting.${Color_Off}"; exit 1; fi
 elif [[ "${FS}" == "luks" ]]; then
     mkfs.fat -F32 "${partition2}"
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create FAT32 filesystem on ${partition2}. Exiting.${Color_Off}"; exit 1; fi
     echo -n "${LUKS_PASSWORD}" | cryptsetup -y -v luksFormat "${partition3}" -
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to format LUKS container on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
     echo -n "${LUKS_PASSWORD}" | cryptsetup open "${partition3}" ROOT -
-    mkfs.btrfs "${partition3}"
-    mount -t btrfs "${partition3}" /mnt
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to open LUKS container on ${partition3}. Exiting.${Color_Off}"; exit 1; fi
+    mkfs.btrfs /dev/mapper/ROOT
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to create btrfs filesystem on LUKS container. Exiting.${Color_Off}"; exit 1; fi
+    mount -t btrfs /dev/mapper/ROOT /mnt
+    if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount LUKS container. Exiting.${Color_Off}"; exit 1; fi
     subvolumesetup
     ENCRYPTED_PARTITION_UUID=$(blkid -s UUID -o value "${partition3}")
 fi
@@ -418,11 +440,12 @@ BOOT_UUID=$(blkid -s UUID -o value "${partition2}")
 
 sync
 if ! mountpoint -q /mnt; then
-    echo -e "${BRed}ERROR: Failed to mount ${partition3} to /mnt. Exiting.${Color_Off}"
+    echo -e "${BRed}ERROR: Failed to mount root partition to /mnt. Exiting.${Color_Off}"
     exit 1
 fi
 mkdir -p /mnt/boot
 mount -U "${BOOT_UUID}" /mnt/boot/
+if [ $? -ne 0 ]; then echo -e "${BRed}ERROR: Failed to mount EFI partition to /mnt/boot. Exiting.${Color_Off}"; exit 1; fi
 
 if ! grep -qs '/mnt' /proc/mounts; then
     echo -e "${BRed}ERROR: Drive is not mounted. Rebooting in 3 seconds...${Color_Off}" && sleep 1
@@ -431,12 +454,19 @@ if ! grep -qs '/mnt' /proc/mounts; then
     reboot now
 fi
 
-echo -e "${BGreen}Installing Arch Linux on Main Drive...${Color_Off}"
-if [[ ! -d "/sys/firmware/efi" ]]; then
-    pacstrap /mnt base base-devel linux-lts linux-firmware --noconfirm --needed
-else
-    pacstrap /mnt base base-devel linux-lts linux-firmware efibootmgr --noconfirm --needed
+echo -e "${BGreen}Installing Arch Linux on Main Drive... This may take a while.${Color_Off}"
+PKGS="base base-devel linux-lts linux-firmware"
+if [[ -d "/sys/firmware/efi" ]]; then
+    PKGS+=" efibootmgr"
 fi
+pacstrap /mnt $PKGS --noconfirm --needed
+if [ $? -ne 0 ]; then
+    echo -e "${BRed}ERROR: Pacstrap failed to install the base system.${Color_Off}"
+    echo -e "${BYellow}This is often due to a network issue or bad mirrors.${Color_Off}"
+    echo -e "${BYellow}Check archsetup.txt for detailed logs. Exiting.${Color_Off}"
+    exit 1
+fi
+
 echo "keyserver hkp://keyserver.ubuntu.com" >> /mnt/etc/pacman.d/gnupg/gpg.conf
 cp /etc/pacman.d/mirrorlist /mnt/etc/pacman.d/mirrorlist
 
@@ -446,10 +476,10 @@ cat /mnt/etc/fstab
 
 echo -e "${BGreen}GRUB Bootloader Installation${Color_Off}"
 if [[ ! -d "/sys/firmware/efi" ]]; then
-    echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
+    echo -e "${BCyan}Installing GRUB for BIOS...${Color_Off}"
     grub-install --boot-directory=/mnt/boot "${DISK}"
     if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
+        echo -e "${BRed}ERROR: GRUB BIOS installation failed. Exiting.${Color_Off}"
         exit 1
     fi
 fi
@@ -478,6 +508,7 @@ fi
 
 
 arch-chroot /mnt /bin/bash -c "KEYMAP='${KEYMAP}' /bin/bash" <<EOF
+set -e
 
 echo "root:${PASSWORD}" | chpasswd
 
@@ -522,7 +553,7 @@ locale-gen
 timedatectl --no-ask-password set-timezone ${TIMEZONE}
 timedatectl --no-ask-password set-ntp 1
 localectl --no-ask-password set-locale LANG="en_US.UTF-8" LC_TIME="en_US.UTF-8"
-ln -s /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
+ln -sf /usr/share/zoneinfo/${TIMEZONE} /etc/localtime
 
 echo "KEYMAP=${KEYMAP}" > /etc/vconsole.conf
 echo "XKBLAYOUT=${KEYMAP}" >> /etc/vconsole.conf
@@ -558,13 +589,14 @@ ${BGreen}-----------------------------------------------------------------------
                  Installing Graphics Drivers
 -------------------------------------------------------------------------${Color_Off}
 "
-if echo "${gpu_type}" | grep -E "NVIDIA|GeForce"; then
+gpu_type=\$(lspci)
+if echo "\${gpu_type}" | grep -E "NVIDIA|GeForce"; then
     echo -e "${BGreen}Installing NVIDIA drivers: nvidia-lts...${Color_Off}"
     pacman -S --noconfirm --needed nvidia-lts
-elif echo "${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
+elif echo "\${gpu_type}" | grep 'VGA' | grep -E "Radeon|AMD"; then
     echo -e "${BGreen}Installing AMD drivers: xf86-video-amdgpu...${Color_Off}"
     pacman -S --noconfirm --needed xf86-video-amdgpu
-elif echo "${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
+elif echo "\${gpu_type}" | grep -E "Integrated Graphics Controller|Intel Corporation UHD"; then
     echo -e "${BGreen}Installing Intel drivers...${Color_Off}"
     pacman -S --noconfirm --needed libva-intel-driver libvdpau-va-gl lib32-vulkan-intel vulkan-intel libva-intel-driver libva-utils lib32-mesa
 else
@@ -587,12 +619,14 @@ echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
 echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
 wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
 echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
-cd /home/$USERNAME/ && sudo chmod +x fast-hyprland.sh
+chown $USERNAME:$USERNAME /home/$USERNAME/fast-hyprland.sh
+chmod +x /home/$USERNAME/fast-hyprland.sh
 
 if [[ ${FS} == "luks" ]]; then
     sed -i 's/filesystems/encrypt filesystems/g' /etc/mkinitcpio.conf
-    mkinitcpio -p linux-lts
 fi
+mkinitcpio -p linux-lts
+
 
 echo -ne "
 ${BCyan}-------------------------------------------------------------------------
@@ -611,11 +645,7 @@ GRUB EFI Bootloader Install & Check${Color_Off}"
 
 if [[ -d "/sys/firmware/efi" ]]; then
     echo -e "${BCyan}Installing GRUB for EFI...${Color_Off}"
-    grub-install --efi-directory=/boot "${DISK}"
-    if [ $? -ne 0 ]; then
-        echo -e "${BRed}ERROR: GRUB EFI installation failed. Exiting.${Color_Off}"
-        exit 1
-    fi
+    grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=ARCH
 fi
 
 echo -ne "
@@ -630,18 +660,14 @@ sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT="[^"]*/& splash /' /etc/default/grub
 
 echo -e "${BGreen}Updating grub...${Color_Off}"
 grub-mkconfig -o /boot/grub/grub.cfg
-if [ $? -ne 0 ]; then
-    echo -e "${BRed}ERROR: Failed to create grub.cfg. Exiting.${Color_Off}"
-    exit 1
-fi
 
 echo -e "${BGreen}Verifying grub configuration...${Color_Off}"
 if [ ! -f /boot/grub/grub.cfg ]; then
-    echo -e "${BRed}ERROR: grub.cfg was not created. Exiting.${Color_Off}"
+    echo -e "${BRed}FATAL: grub.cfg was not created.${Color_Off}"
     exit 1
 fi
 if ! grep -q "Arch Linux" /boot/grub/grub.cfg; then
-    echo -e "${BRed}ERROR: grub.cfg does not contain an Arch Linux entry. Exiting.${Color_Off}"
+    echo -e "${BRed}FATAL: grub.cfg does not contain an Arch Linux entry.${Color_Off}"
     exit 1
 fi
 echo -e "${BGreen}Grub configuration complete!${Color_Off}"
@@ -673,3 +699,11 @@ sed -i 's/^# %wheel ALL=(ALL) ALL/%wheel ALL=(ALL) ALL/' /etc/sudoers
 sed -i 's/^# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/' /etc/sudoers
 
 EOF
+
+if [ $? -ne 0 ]; then
+    echo -e "${BRed}ERROR: A critical command failed inside the chroot environment.${Color_Off}"
+    echo -e "${BYellow}Check the logs in archsetup.txt above this message to see what failed. Installation cannot continue.${Color_Off}"
+    exit 1
+fi
+
+echo -e "${BGreen}Installation is complete! You may now reboot your system.${Color_Off}"
