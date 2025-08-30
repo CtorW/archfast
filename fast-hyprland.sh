@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # ==============================================================================
-# Hyprland Dotfiles Installer Script
+# Arch Linux Post-Install Setup Script
 #
 # It should be run after a base Arch Linux installation.
+# Environments or Window Managers.
 #
 # Original Author: CtorW - Github
 # ==============================================================================
@@ -95,32 +96,30 @@ check_dependencies() {
     fi
 }
 
-show_welcome_screen() {
-    clear
-    logo
-    echo -e "${BWhite}=========================================="
-    echo "  Hyprland Dotfiles Installation Menu"
-    echo -e "==========================================${Color_Off}"
+install_display_server_basics() {
+    msg "Installing essential display server components (Xorg, Mesa)..."
+    sudo pacman -S --noconfirm --needed xorg-server xorg-xinit mesa libglvnd
+    msg "Display server basics installed."
 }
 
-show_whiptail_menu() {
-    local options=()
-    local item_list=(
-        "HyDE"
-        "end-4's dots-hyprland"
-        "Lunaris-Project-Hyprluna"
-        "Caelestia-dots"
-        "KooL's Arch - Hyprland"
-        "Exit"
-    )
+install_packages() {
+    msg "Installing packages: $*"
+    sudo pacman -S --noconfirm --needed "$@"
+    msg "Package installation complete."
+}
 
-    for item in "${item_list[@]}"; do
-        options+=("$item" "")
-    done
+enable_service() {
+    msg "Enabling systemd service: $1"
+    sudo systemctl enable "$1"
+    msg "Service $1 enabled."
+}
 
-    whiptail --title "Hyprland Dotfiles Installer" \
-             --menu "Please select a dotfiles configuration to install:" 20 60 12 \
-             "${options[@]}" 3>&1 1>&2 2>&3
+backup_config() {
+    local config_dir="$1"
+    if [ -d "$config_dir" ]; then
+        msg "Existing configuration found at $config_dir. Backing it up to ${config_dir}.bak..."
+        mv "$config_dir" "${config_dir}.bak"
+    fi
 }
 
 install_from_repo() {
@@ -181,14 +180,38 @@ install_caelestia() {
     read -p "Press Enter to continue..."
 }
 
-main() {
-    check_dependencies
+show_hyprland_menu() {
+    local options=()
+    local item_list=(
+        "Hyprland (Official)"
+        "HyDE"
+        "end-4's dots-hyprland"
+        "Lunaris-Project-Hyprluna"
+        "Caelestia-dots"
+        "KooL's Arch - Hyprland"
+        "Back"
+    )
 
+    for item in "${item_list[@]}"; do
+        options+=("$item" "")
+    done
+
+    whiptail --title "Hyprland Dotfiles Installer" \
+             --menu "Please select a Hyprland configuration to install:" 20 60 12 \
+             "${options[@]}" 3>&1 1>&2 2>&3
+}
+
+install_hyprland() {
     while true; do
-        show_welcome_screen
-        choice=$(show_whiptail_menu) || { msg "Exiting script. Goodbye! :>"; exit 0; }
+        choice=$(show_hyprland_menu) || { return; }
 
         case "$choice" in
+            "Hyprland (Official)")
+                msg "Installing official Hyprland packages..."
+                install_packages hyprland waybar wofi foot thunar xdg-desktop-portal-hyprland
+                msg "Official Hyprland installed. You will need to create your own configuration."
+                read -p "Press Enter to continue..."
+                ;;
             "HyDE")
                 install_from_repo "HyDE" \
                     "https://github.com/HyDE-Project/HyDE" \
@@ -215,6 +238,174 @@ main() {
                     "https://github.com/JaKooLit/Arch-Hyprland.git" \
                     "$HOME/Arch-Hyprland" \
                     "chmod +x install.sh && ./install.sh"
+                ;;
+            "Back")
+                return
+                ;;
+        esac
+    done
+}
+
+install_gnome() {
+    msg "Installing GNOME Desktop Environment..."
+    install_packages gnome gdm gnome-tweaks
+    enable_service "gdm.service"
+    msg "GNOME installation complete. Please reboot."
+    read -p "Press Enter to continue..."
+}
+
+install_kde() {
+    msg "Installing KDE Plasma Desktop Environment..."
+    install_packages plasma-meta kde-applications sddm
+    enable_service "sddm.service"
+    msg "KDE Plasma installation complete. Please reboot."
+    read -p "Press Enter to continue..."
+}
+
+install_xfce() {
+    msg "Installing XFCE Desktop Environment..."
+    install_packages xfce4 xfce4-goodies lightdm lightdm-gtk-greeter
+    enable_service "lightdm.service"
+    msg "XFCE installation complete. Please reboot."
+    read -p "Press Enter to continue..."
+}
+
+install_cinnamon() {
+    msg "Installing Cinnamon Desktop Environment..."
+    install_packages cinnamon lightdm lightdm-gtk-greeter
+    enable_service "lightdm.service"
+    msg "Cinnamon installation complete. Please reboot."
+    read -p "Press Enter to continue..."
+}
+
+install_mate() {
+    msg "Installing MATE Desktop Environment..."
+    install_packages mate mate-extra lightdm lightdm-gtk-greeter
+    enable_service "lightdm.service"
+    msg "MATE installation complete. Please reboot."
+    read -p "Press Enter to continue..."
+}
+
+install_lxqt() {
+    msg "Installing LXQt Desktop Environment..."
+    install_packages lxqt breeze-icons sddm
+    enable_service "sddm.service"
+    msg "LXQt installation complete. Please reboot."
+    read -p "Press Enter to continue..."
+}
+
+install_i3() {
+    msg "Installing i3 Window Manager..."
+    install_packages i3-wm i3status dmenu picom alacritty firefox thunar
+    
+    backup_config "$HOME/.config/i3"
+    msg "Cloning basic i3 config from github.com/karlstav/i3-config..."
+    git clone --depth 1 "https://github.com/karlstav/i3-config.git" "$HOME/.config/i3"
+    
+    msg "i3 installation complete. Type 'startx' after logging into the TTY."
+    read -p "Press Enter to continue..."
+}
+
+install_sway() {
+    msg "Installing Sway (Wayland) Window Manager..."
+    install_packages sway swaybg swaylock waybar wofi foot firefox thunar polkit
+    backup_config "$HOME/.config/sway"
+    msg "Cloning basic sway config..."
+    git clone --depth 1 "https://github.com/Alexays/dotfiles-i3" "$HOME/.config/sway-temp"
+    mkdir -p "$HOME/.config/sway"
+    mv "$HOME/.config/sway-temp/sway/config" "$HOME/.config/sway/config"
+    rm -rf "$HOME/.config/sway-temp"
+    
+    msg "Sway installation complete. Type 'sway' after logging into the TTY."
+    read -p "Press Enter to continue..."
+}
+
+install_awesomewm() {
+    msg "Installing AwesomeWM Window Manager..."
+    install_packages awesome picom rofi alacritty firefox thunar
+    backup_config "$HOME/.config/awesome"
+    msg "Copying default awesome config..."
+    mkdir -p "$HOME/.config/awesome"
+    cp "/etc/xdg/awesome/rc.lua" "$HOME/.config/awesome/rc.lua"
+    
+    msg "AwesomeWM installation complete. You will need a display manager or startx."
+    read -p "Press Enter to continue..."
+}
+
+show_de_menu() {
+    local options=()
+    local item_list=("GNOME" "KDE Plasma" "XFCE" "Cinnamon" "MATE" "LXQt" "Back")
+
+    for item in "${item_list[@]}"; do
+        options+=("$item" "")
+    done
+
+    whiptail --title "Desktop Environment Installer" \
+             --menu "Please select a Desktop Environment to install:" 20 60 12 \
+             "${options[@]}" 3>&1 1>&2 2>&3
+}
+
+show_wm_menu() {
+    local options=()
+    local item_list=("Hyprland" "i3" "Sway" "AwesomeWM" "Back")
+
+    for item in "${item_list[@]}"; do
+        options+=("$item" "")
+    done
+
+    whiptail --title "Window Manager Installer" \
+             --menu "Please select a Window Manager to install:" 20 60 12 \
+             "${options[@]}" 3>&1 1>&2 2>&3
+}
+
+show_main_menu() {
+    local options=()
+    local item_list=("Desktop Environment" "Window Manager" "Exit")
+
+    for item in "${item_list[@]}"; do
+        options+=("$item" "")
+    done
+
+    whiptail --title "Arch Post-Install Setup" \
+             --menu "What would you like to install?" 20 60 12 \
+             "${options[@]}" 3>&1 1>&2 2>&3
+}
+
+main() {
+    check_dependencies
+    
+    install_display_server_basics
+    while true; do
+        clear
+        logo
+        echo -e "${BWhite}=================================================="
+        echo "      Arch Linux Post-Install Setup Script"
+        echo -e "==================================================${Color_Off}"
+        
+        main_choice=$(show_main_menu) || { msg "Exiting script. Goodbye! :>"; exit 0; }
+
+        case "$main_choice" in
+            "Desktop Environment")
+                de_choice=$(show_de_menu) || continue
+                case "$de_choice" in
+                    "GNOME") install_gnome ;;
+                    "KDE Plasma") install_kde ;;
+                    "XFCE") install_xfce ;;
+                    "Cinnamon") install_cinnamon ;;
+                    "MATE") install_mate ;;
+                    "LXQt") install_lxqt ;;
+                    "Back") continue ;;
+                esac
+                ;;
+            "Window Manager")
+                wm_choice=$(show_wm_menu) || continue
+                case "$wm_choice" in
+                    "Hyprland") install_hyprland ;;
+                    "i3") install_i3 ;;
+                    "Sway") install_sway ;;
+                    "AwesomeWM") install_awesomewm ;;
+                    "Back") continue ;;
+                esac
                 ;;
             "Exit")
                 msg "Exiting script. Goodbye! :>"
