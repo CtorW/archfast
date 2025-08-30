@@ -47,47 +47,12 @@ cd archfast
 
 ### 🧏 Log in to your Machine $USERNAME|$PASSWORD
 
-### ⌨️ Now Run the fast-hyprland.sh
+### ⌨️ Now Run the fast-de.sh
 ```bash
-./fast-hyprland.sh
+./fast-de.sh
 ```
 Functions: Will install missing dependencies. (eg. fish, curl, wget) 
 
-# Choose your Dots in `fast-hyprland.sh`
-<div align="center">
-  <table>
-    <tr>
-      <td>HyDE</td>
-      <td>end-4</td>
-    </tr>
-    <tr>
-      <td>
-<img src="https://github.com/rishav12s/Vanta-Black/raw/Vanta-Black/screenshots/ss_2.png"/>
-      </td>
-      <td>
-<img src="https://end-4.github.io/dots-hyprland-wiki/screenshots/i-i.2.png"/>
-      </td>
-    </tr>
-  </table>
-</div>
-
-<div align="center">
-  <table>
-    <tr>
-      <td>Hyprluna</td>
-      <td>Caelestia</td>
-    </tr>
-    <tr>
-      <td>
-<img src="https://github.com/Lunaris-Project/HyprLuna/blob/main/previews/6.png?raw=true"/>
-      </td>
-      <td>
-        
-<video src="https://github.com/user-attachments/assets/0840f496-575c-4ca6-83a8-87bb01a85c5f" style="max"></video>
-      </td>
-    </tr>
-  </table>
-</div>
 
 ### For qt icon theme 
 ```bash
