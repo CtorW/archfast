@@ -1,6 +1,4 @@
 <div align="CENTER">
-
-### 󰖷Documentation Site (Work in Progress)
   
 # ARCH FAST - Archlinux fastest installer [Titus] 
 
