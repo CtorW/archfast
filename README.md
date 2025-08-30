@@ -103,19 +103,9 @@ Congratulations! The base system is installed. A couple more steps and you'll ha
     ```bash
     ./fast-de.sh
     ```
-    DE ⬇️
-        GNOME
-        KDE Plasma
-        XFCE
-        Cinnamon
-        MATE
-        LXQt
-    
-    WM ⬇️
-        Hyprland
-        i3
-        Sway
-        AwesomeWM
+| Desktop Environments | Window Manager |
+|---|---|
+| GNOME, KDE Plasma, XFCE, Cinnamon, MATE, LXQt | i3, Sway, AwesomeWM, Hyprland |
 
 ---
 
