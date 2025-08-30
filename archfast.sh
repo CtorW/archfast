@@ -699,7 +699,7 @@ fi
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
-    Adding User & fast-hyprland scipt
+    Adding User & fast-de scipt
 -------------------------------------------------------------------------${Color_Off}
 "
 groupadd libvirt
@@ -711,10 +711,10 @@ echo $NAME_OF_MACHINE > /etc/hostname
 echo -e "${BGreen}Hostname set to '$NAME_OF_MACHINE'.${Color_Off}"
 
 echo -e "${BGreen}Pulling Dots installer transfer to /home/$USERNAME/${Color_Off}"
-wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-hyprland.sh -P /home/$USERNAME/
+wget https://raw.githubusercontent.com/CtorW/archfast/refs/heads/uno/fast-de.sh -P /home/$USERNAME/
 echo -e "${BGreen} changing permission Dots installer script.${Color_Off}"
-chown $USERNAME:$USERNAME /home/$USERNAME/fast-hyprland.sh
-chmod +x /home/$USERNAME/fast-hyprland.sh
+chown $USERNAME:$USERNAME /home/$USERNAME/fast-de.sh
+chmod +x /home/$USERNAME/fast-de.sh
 
 echo -ne "
 ${BGreen}-------------------------------------------------------------------------
