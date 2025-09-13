@@ -121,16 +121,6 @@ pacman_check() {
     fi
 }
 
-check_internet() {
-    echo -e "${BGreen}Checking for internet connectivity...${Color_Off}"
-    if ! curl -sL --connect-timeout 5 https://archlinux.org > /dev/null; then
-        echo -e "${BRed}ERROR: No internet connection detected.${Color_Off}"
-        echo -e "${BYellow}Please connect to the internet (e.g., using iwctl) and try again. Exiting.${Color_Off}"
-        exit 1
-    fi
-    echo -e "${BGreen}Internet connection confirmed.${Color_Off}"
-}
-
 background_checks() {
     root_check
     arch_check
@@ -381,8 +371,6 @@ else
     echo -e "${BRed}Installation canceled by user at final confirmation. Exiting.${Color_Off}"
     exit 1
 fi
-
-check_internet
 
 echo -e "${BGreen}Setting up mirrors for optimal download speed...${Color_Off}"
 iso=$(curl -4 ifconfig.io/country_code)
