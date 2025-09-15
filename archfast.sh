@@ -314,6 +314,7 @@ swap_size_customization () {
     "8" "8GB - Recommended for 8GB+ RAM with hibernation" OFF \
     "custom" "Enter a custom size manually" OFF 3>&1 1>&2 2>&3)
     
+    if [ $? != 0 ]; then msg "ERROR" "User canceled at Swap Size selection. Exiting."; exit 1; fi
 
     if [ "$SWAP_CHOICE" == "custom" ]; then
         SWAP_SIZE_GB=$(whiptail --title "Custom Swap Size" --inputbox \
