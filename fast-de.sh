@@ -49,22 +49,33 @@ else
     BICyan="\033[1;96m"
 fi
 
-# ==============================================================================
-# Logo :> Thanks to HyDE for the Arch logo :>
-# ==============================================================================
-msg() {
-    echo -e "${BGreen}==>${Color_Off} ${BWhite}$*${Color_Off}"
+_msg() {
+    local color="$1"
+    local prefix="$2"
+    local message="$3"
+    echo -e "${color}${prefix}${Color_Off} ${White}${message}${Color_Off}"
 }
 
-warning() {
-    echo -e "${BYellow}==> WARNING:${Color_Off} ${White}$*${Color_Off}"
+info() {
+    _msg "${BBlue}" "[INFO]" "$*"
+}
+
+success() {
+    _msg "${BGreen}" "[SUCCESS]" "$*"
+}
+
+warn() {
+    _msg "${BYellow}" "[WARN]" "$*"
 }
 
 error() {
-    echo -e "${BRed}==> ERROR:${Color_Off} ${Red}$*${Color_Off}" >&2
+    _msg "${BRed}" "[ERROR]" "$*" >&2
     exit 1
 }
 
+# ==============================================================================
+# Logo :> Thanks to HyDE for the Arch logo :>
+# ==============================================================================
 logo() {
     echo -e "${BICyan}
         .
@@ -77,7 +88,7 @@ logo() {
 }
 
 check_dependencies() {
-    msg "Checking for required dependencies..."
+    info "Checking for required dependencies..."
     if ! command -v pacman &>/dev/null; then
         error "'pacman' not found. This script is intended for Arch-based distributions."
     fi
@@ -91,33 +102,34 @@ check_dependencies() {
     done
 
     if [ ${#missing_deps[@]} -gt 0 ]; then
-        warning "Missing dependencies: ${missing_deps[*]}. Attempting to install."
+        warn "Missing dependencies: ${missing_deps[*]}. Attempting to install."
         sudo pacman -S --noconfirm "${missing_deps[@]}"
+        success "Dependencies installed."
     fi
 }
 
 install_display_server_basics() {
-    msg "Installing essential display server components (Xorg, Mesa)..."
+    info "Installing essential display server components (Xorg, Mesa)..."
     sudo pacman -S --noconfirm --needed xorg-server xorg-xinit mesa libglvnd
-    msg "Display server basics installed."
+    success "Display server basics installed."
 }
 
 install_packages() {
-    msg "Installing packages: $*"
+    info "Installing packages: $*"
     sudo pacman -S --noconfirm --needed "$@"
-    msg "Package installation complete."
+    success "Package installation complete for: $*"
 }
 
 enable_service() {
-    msg "Enabling systemd service: $1"
+    info "Enabling systemd service: $1"
     sudo systemctl enable "$1"
-    msg "Service $1 enabled."
+    success "Service $1 enabled."
 }
 
 backup_config() {
     local config_dir="$1"
     if [ -d "$config_dir" ]; then
-        msg "Existing configuration found at $config_dir. Backing it up to ${config_dir}.bak..."
+        info "Existing configuration found at $config_dir. Backing it up to ${config_dir}.bak..."
         mv "$config_dir" "${config_dir}.bak"
     fi
 }
@@ -128,37 +140,37 @@ install_from_repo() {
     local clone_dir="$3"
     local install_cmd="$4"
 
-    msg "Installing $name..."
+    info "Starting installation for $name..."
 
     if [ -d "$clone_dir" ]; then
-        warning "Directory '$clone_dir' already exists. Skipping clone."
+        warn "Directory '$clone_dir' already exists. Skipping clone."
     else
-        msg "Cloning $repo_url into $clone_dir..."
+        info "Cloning $repo_url into $clone_dir..."
         git clone --depth 1 "$repo_url" "$clone_dir"
     fi
 
     cd "$clone_dir" || error "Failed to enter directory '$clone_dir'. Installation aborted."
 
-    msg "Running install command: '$install_cmd'..."
+    info "Running install command: '$install_cmd'..."
     bash -c "$install_cmd"
 
-    msg "$name installation complete. You may need to reboot or log out."
+    success "$name installation complete. You may need to reboot or log out."
     read -p "Press Enter to continue..."
 }
 
 install_caelestia() {
-    msg "Installing Caelestia-dots..."
+    info "Starting Caelestia-dots installation..."
 
-    msg "Installing Caelestia-specific dependencies..."
+    info "Installing Caelestia-specific dependencies..."
     sudo pacman -S --noconfirm fish pipewire wireplumber pipewire-pulse
 
     local clone_dir="$HOME/.local/share/caelestia"
     local repo_url="https://github.com/caelestia-dots/caelestia.git"
     
     if [ -d "$clone_dir" ]; then
-        warning "Directory '$clone_dir' already exists. Skipping clone."
+        warn "Directory '$clone_dir' already exists. Skipping clone."
     else
-        msg "Cloning $repo_url into $clone_dir..."
+        info "Cloning $repo_url into $clone_dir..."
         git clone "$repo_url" "$clone_dir"
     fi
 
@@ -173,10 +185,10 @@ install_caelestia() {
 
     read -p "Enter arguments for install.fish script (or press Enter for default): " install_args
 
-    msg "Running install.fish with arguments: '$install_args'"
+    info "Running install.fish with arguments: '$install_args'"
     fish "$clone_dir/install.fish" $install_args
 
-    msg "Caelestia-dots installation complete. You may need to reboot or log out."
+    success "Caelestia-dots installation complete. You may need to reboot or log out."
     read -p "Press Enter to continue..."
 }
 
@@ -207,9 +219,9 @@ install_hyprland() {
 
         case "$choice" in
             "Hyprland (Official)")
-                msg "Installing official Hyprland packages..."
+                info "Installing official Hyprland packages..."
                 install_packages hyprland waybar wofi foot thunar xdg-desktop-portal-hyprland
-                msg "Official Hyprland installed. You will need to create your own configuration."
+                success "Official Hyprland installed. You will need to create your own configuration."
                 read -p "Press Enter to continue..."
                 ;;
             "HyDE")
@@ -247,88 +259,88 @@ install_hyprland() {
 }
 
 install_gnome() {
-    msg "Installing GNOME Desktop Environment..."
+    info "Installing GNOME Desktop Environment..."
     install_packages gnome gdm gnome-tweaks
     enable_service "gdm.service"
-    msg "GNOME installation complete. Please reboot."
+    success "GNOME installation complete. Please reboot."
     read -p "Press Enter to continue..."
 }
 
 install_kde() {
-    msg "Installing KDE Plasma Desktop Environment..."
+    info "Installing KDE Plasma Desktop Environment..."
     install_packages plasma-meta kde-applications sddm
     enable_service "sddm.service"
-    msg "KDE Plasma installation complete. Please reboot."
+    success "KDE Plasma installation complete. Please reboot."
     read -p "Press Enter to continue..."
 }
 
 install_xfce() {
-    msg "Installing XFCE Desktop Environment..."
+    info "Installing XFCE Desktop Environment..."
     install_packages xfce4 xfce4-goodies lightdm lightdm-gtk-greeter
     enable_service "lightdm.service"
-    msg "XFCE installation complete. Please reboot."
+    success "XFCE installation complete. Please reboot."
     read -p "Press Enter to continue..."
 }
 
 install_cinnamon() {
-    msg "Installing Cinnamon Desktop Environment..."
+    info "Installing Cinnamon Desktop Environment..."
     install_packages cinnamon lightdm lightdm-gtk-greeter
     enable_service "lightdm.service"
-    msg "Cinnamon installation complete. Please reboot."
+    success "Cinnamon installation complete. Please reboot."
     read -p "Press Enter to continue..."
 }
 
 install_mate() {
-    msg "Installing MATE Desktop Environment..."
+    info "Installing MATE Desktop Environment..."
     install_packages mate mate-extra lightdm lightdm-gtk-greeter
     enable_service "lightdm.service"
-    msg "MATE installation complete. Please reboot."
+    success "MATE installation complete. Please reboot."
     read -p "Press Enter to continue..."
 }
 
 install_lxqt() {
-    msg "Installing LXQt Desktop Environment..."
+    info "Installing LXQt Desktop Environment..."
     install_packages lxqt breeze-icons sddm
     enable_service "sddm.service"
-    msg "LXQt installation complete. Please reboot."
+    success "LXQt installation complete. Please reboot."
     read -p "Press Enter to continue..."
 }
 
 install_i3() {
-    msg "Installing i3 Window Manager..."
+    info "Installing i3 Window Manager..."
     install_packages i3-wm i3status dmenu picom alacritty firefox thunar
     
     backup_config "$HOME/.config/i3"
-    msg "Cloning basic i3 config from github.com/karlstav/i3-config..."
+    info "Cloning basic i3 config from github.com/karlstav/i3-config..."
     git clone --depth 1 "https://github.com/karlstav/i3-config.git" "$HOME/.config/i3"
     
-    msg "i3 installation complete. Type 'startx' after logging into the TTY."
+    success "i3 installation complete. Type 'startx' after logging into the TTY."
     read -p "Press Enter to continue..."
 }
 
 install_sway() {
-    msg "Installing Sway (Wayland) Window Manager..."
+    info "Installing Sway (Wayland) Window Manager..."
     install_packages sway swaybg swaylock waybar wofi foot firefox thunar polkit
     backup_config "$HOME/.config/sway"
-    msg "Cloning basic sway config..."
+    info "Cloning basic sway config..."
     git clone --depth 1 "https://github.com/Alexays/dotfiles-i3" "$HOME/.config/sway-temp"
     mkdir -p "$HOME/.config/sway"
     mv "$HOME/.config/sway-temp/sway/config" "$HOME/.config/sway/config"
     rm -rf "$HOME/.config/sway-temp"
-    
-    msg "Sway installation complete. Type 'sway' after logging into the TTY."
+
+    success "Sway installation complete. Type 'sway' after logging into the TTY."
     read -p "Press Enter to continue..."
 }
 
 install_awesomewm() {
-    msg "Installing AwesomeWM Window Manager..."
+    info "Installing AwesomeWM Window Manager..."
     install_packages awesome picom rofi alacritty firefox thunar
     backup_config "$HOME/.config/awesome"
-    msg "Copying default awesome config..."
+    info "Copying default awesome config..."
     mkdir -p "$HOME/.config/awesome"
     cp "/etc/xdg/awesome/rc.lua" "$HOME/.config/awesome/rc.lua"
     
-    msg "AwesomeWM installation complete. You will need a display manager or startx."
+    success "AwesomeWM installation complete. You will need a display manager or startx."
     read -p "Press Enter to continue..."
 }
 
@@ -382,7 +394,7 @@ main() {
         echo "      Arch Linux Post-Install Setup Script"
         echo -e "==================================================${Color_Off}"
         
-        main_choice=$(show_main_menu) || { msg "Exiting script. Goodbye! :>"; exit 0; }
+        main_choice=$(show_main_menu) || { info "Exiting script. Goodbye! :>"; exit 0; }
 
         case "$main_choice" in
             "Desktop Environment")
@@ -408,7 +420,7 @@ main() {
                 esac
                 ;;
             "Exit")
-                msg "Exiting script. Goodbye! :>"
+                info "Exiting script. Goodbye! :>"
                 exit 0
                 ;;
         esac
