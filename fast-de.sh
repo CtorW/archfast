@@ -201,6 +201,7 @@ show_hyprland_menu() {
         "Lunaris-Project-Hyprluna"
         "Caelestia-dots"
         "KooL's Arch - Hyprland"
+        "vantesh/dotfiles"
         "Back"
     )
 
@@ -250,6 +251,12 @@ install_hyprland() {
                     "https://github.com/JaKooLit/Arch-Hyprland.git" \
                     "$HOME/Arch-Hyprland" \
                     "chmod +x install.sh && ./install.sh"
+                ;;
+            "vantesh/dotfiles")
+                install_from_repo "Installing vantesh/dotfiles HyprNiri" \
+                "https://github.com/Vantesh/dotfiles.git" \
+                "$HOME/dotfiles" \
+                "chmod +x install.sh && ./install.sh"
                 ;;
             "Back")
                 return
