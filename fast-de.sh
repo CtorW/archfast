@@ -262,7 +262,7 @@ install_hyprland() {
             "ML4W Dotfiles-for-Hyprland-by-mylinuxforwork")
                 install_from_repo "Installing ML4W Dotfiles" \
                 "https://github.com/mylinuxforwork/dotfiles.git" \
-                "$HOME/dotfiles/setup" \
+                "$HOME/dotfiles" \
                 "chmod +x setup.sh && ./setup.sh"
                 ;;
             "Back")
