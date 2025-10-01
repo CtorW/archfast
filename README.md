@@ -17,7 +17,7 @@ Inspired by the efficiency of Titus's scripts, `archfast` is a streamlined insta
 
 ---
 
-##📋 Prerequisites
+## 📋 Prerequisites
 
 Before you begin, ensure you have the following:
 
