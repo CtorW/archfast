@@ -202,6 +202,7 @@ show_hyprland_menu() {
         "Caelestia-dots"
         "KooL's Arch - Hyprland"
         "vantesh/dotfiles"
+        "ML4W Dotfiles-for-Hyprland-by-mylinuxforwork"
         "Back"
     )
 
@@ -257,6 +258,12 @@ install_hyprland() {
                 "https://github.com/Vantesh/dotfiles.git" \
                 "$HOME/dotfiles" \
                 "chmod +x install.sh && ./install.sh"
+                ;;
+            "ML4W Dotfiles-for-Hyprland-by-mylinuxforwork")
+                install_from_repo "Installing ML4W Dotfiles" \
+                "https://github.com/mylinuxforwork/dotfiles.git" \
+                "$HOME/dotfiles/setup" \
+                "chmod +x setup.sh && ./setup.sh"
                 ;;
             "Back")
                 return
