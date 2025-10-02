@@ -109,27 +109,6 @@ Congratulations! The base system is installed. A couple more steps and you'll ha
 
 ---
 
-## 🎨 Customization
-
-### **Applying GTK Icon and Interface Themes**
-
-To manually set your GTK theme, icons, and font, you can edit the following configuration files:
-
-*   `~/.config/gtk-3.0/settings.ini`
-*   `~/.config/gtk-4.0/settings.ini`
-
-Add the following content to both files, replacing the bracketed values with your desired theme names:
-
-```ini
-[Settings]
-gtk-theme-name=[your_gtk_theme]
-gtk-icon-theme-name=[your_icon_theme]
-gtk-font-name=[your_font_name]
-gtk-cursor-theme-name=[your_cursor_theme]
-gtk-cursor-theme-size=[size_in_pixels]
-gtk-application-prefer-dark-theme=1 # 1 for dark theme, 0 for light
-```
-
 ### **Advanced Theming with `nwg-look`**
 
 For a graphical interface to manage and apply GTK themes, you can use `nwg-look`. It is a powerful tool for customizing the look and feel of your desktop.
