@@ -223,13 +223,24 @@ diskpart () {
 filesystem () {
     FS_CHOICE=$(whiptail --title "Filesystem & Partition Scheme" --radiolist \
     "Choose the filesystem and layout for your root partition.\n(Use arrow keys and SPACE to select)" 15 78 5 \
-    "btrfs" "Modern filesystem with compression & snapshots" ON \
+    "btrfs(beta)" "Modern filesystem with compression & snapshots" ON \
     "ext4"  "Traditional, stable, and widely-used" OFF \
     "lvm"   "Flexible LVM layout with ext4 volumes" OFF \
     "luks"  "Btrfs with full-disk encryption for security" OFF \
     "lvm_on_luks" "LVM with ext4 volumes inside an encrypted container" OFF 3>&1 1>&2 2>&3)
     if [ $? != 0 ]; then msg "ERROR" "User canceled at Filesystem Selection. Exiting."; exit 1; fi
-    export FS=${FS_CHOICE}
+
+    if [[ "${FS_CHOICE}" == "btrfs(beta)" ]]; then
+        if (whiptail --title "BTRFS CAUTION" --yesno \
+        "You have selected BTRFS.\n\nWhile a powerful filesystem, its implementation in this automated script is considered BETA and has undergone less testing than other options.\n\nPlease proceed with caution.\n\nDo you want to continue with BTRFS?" 15 78); then
+            export FS="btrfs"
+        else
+            msg "ERROR" "User declined the BTRFS beta caution. Exiting."
+            exit 1
+        fi
+    else
+        export FS=${FS_CHOICE}
+    fi
     
     if [[ "${FS}" == "luks" || "${FS}" == "lvm_on_luks" ]]; then
         local luks_match=false
