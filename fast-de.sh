@@ -207,7 +207,6 @@ show_hyprland_menu() {
         "Hyprland (Official)" ""
         "HyDE" ""
         "end-4's dots-hyprland" ""
-        "Lunaris-Project-Hyprluna" ""
         "Caelestia-dots" ""
         "KooL's Arch - Hyprland" ""
         "vantesh/dotfiles" ""
@@ -235,9 +234,6 @@ install_hyprland() {
                 ;;
             "end-4's dots-hyprland")
                 install_from_repo "end-4's dots-hyprland" "https://github.com/end-4/dots-hyprland" "$HOME/dots-hyprland" "./install.sh"
-                ;;
-            "Lunaris-Project-Hyprluna")
-                install_from_repo "Lunaris-Project-Hyprluna" "https://github.com/Lunaris-Project/HyprLuna.git" "$HOME/HyprLuna" "chmod +x installer.sh && ./installer.sh -m"
                 ;;
             "Caelestia-dots")
                 install_caelestia
