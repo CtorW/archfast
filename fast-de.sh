@@ -233,7 +233,7 @@ install_hyprland() {
                 install_from_repo "HyDE" "https://github.com/HyDE-Project/HyDE" "$HOME/HyDE" "./install.sh"
                 ;;
             "end-4's dots-hyprland")
-                install_from_repo "end-4's dots-hyprland" "https://github.com/end-4/dots-hyprland" "$HOME/dots-hyprland" "./install.sh"
+                install_from_repo "end-4's dots-hyprland" "https://github.com/end-4/dots-hyprland" "$HOME/dots-hyprland" "./setup install"
                 ;;
             "Caelestia-dots")
                 install_caelestia
