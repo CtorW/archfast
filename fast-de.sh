@@ -60,7 +60,7 @@ readonly WM_I3_PKGS="i3-wm i3status dmenu picom alacritty firefox thunar"
 readonly WM_SWAY_PKGS="sway swaybg swaylock waybar wofi foot firefox thunar polkit"
 readonly WM_AWESOME_PKGS="awesome picom rofi alacritty firefox thunar"
 readonly CAELESTIA_DEPS="fish pipewire wireplumber pipewire-pulse"
-readonly SCRIPT_DEPS="git curl whiptail"
+readonly SCRIPT_DEPS="git curl libnewt" 
 readonly DISPLAY_SERVER_PKGS="xorg-server xorg-xinit mesa libglvnd"
 
 _msg() {
@@ -106,7 +106,7 @@ check_dependencies() {
     
     local missing_deps=()
     for dep in ${SCRIPT_DEPS}; do
-        if ! command -v "$dep" &>/dev/null; then
+        if ! command -v "$dep" &>/dev/null && ! pacman -Qi "$dep" &>/dev/null; then
             missing_deps+=("$dep")
         fi
     done
@@ -120,7 +120,7 @@ check_dependencies() {
 
 install_display_server_basics() {
     info "Installing essential display server components (Xorg, Mesa)..."
-    install_packages "${DISPLAY_SERVER_PKGS}"
+    install_packages ${DISPLAY_SERVER_PKGS}
     success "Display server basics installed."
 }
 
@@ -172,7 +172,7 @@ install_caelestia() {
     info "Starting Caelestia-dots installation..."
 
     info "Installing Caelestia-specific dependencies..."
-    install_packages "${CAELESTIA_DEPS}"
+    install_packages ${CAELESTIA_DEPS}
 
     local clone_dir="$HOME/.local/share/caelestia"
     local repo_url="https://github.com/caelestia-dots/caelestia.git"
@@ -225,7 +225,7 @@ install_hyprland() {
         case "$choice" in
             "Hyprland (Official)")
                 info "Installing official Hyprland packages..."
-                install_packages "${WM_HYPRLAND_PKGS}"
+                install_packages ${WM_HYPRLAND_PKGS}
                 success "Official Hyprland installed. You will need to create your own configuration."
                 read -p "Press Enter to continue..."
                 ;;
@@ -256,7 +256,7 @@ install_hyprland() {
 
 install_gnome() {
     info "Installing GNOME Desktop Environment..."
-    install_packages "${DE_GNOME_PKGS}"
+    install_packages ${DE_GNOME_PKGS}
     enable_service "gdm.service"
     success "GNOME installation complete. Please reboot."
     read -p "Press Enter to continue..."
@@ -264,7 +264,7 @@ install_gnome() {
 
 install_kde() {
     info "Installing KDE Plasma Desktop Environment..."
-    install_packages "${DE_KDE_PKGS}"
+    install_packages ${DE_KDE_PKGS}
     enable_service "sddm.service"
     success "KDE Plasma installation complete. Please reboot."
     read -p "Press Enter to continue..."
@@ -272,7 +272,7 @@ install_kde() {
 
 install_xfce() {
     info "Installing XFCE Desktop Environment..."
-    install_packages "${DE_XFCE_PKGS}"
+    install_packages ${DE_XFCE_PKGS}
     enable_service "lightdm.service"
     success "XFCE installation complete. Please reboot."
     read -p "Press Enter to continue..."
@@ -280,7 +280,7 @@ install_xfce() {
 
 install_cinnamon() {
     info "Installing Cinnamon Desktop Environment..."
-    install_packages "${DE_CINNAMON_PKGS}"
+    install_packages ${DE_CINNAMON_PKGS}
     enable_service "lightdm.service"
     success "Cinnamon installation complete. Please reboot."
     read -p "Press Enter to continue..."
@@ -288,7 +288,7 @@ install_cinnamon() {
 
 install_mate() {
     info "Installing MATE Desktop Environment..."
-    install_packages "${DE_MATE_PKGS}"
+    install_packages ${DE_MATE_PKGS}
     enable_service "lightdm.service"
     success "MATE installation complete. Please reboot."
     read -p "Press Enter to continue..."
@@ -296,7 +296,7 @@ install_mate() {
 
 install_lxqt() {
     info "Installing LXQt Desktop Environment..."
-    install_packages "${DE_LXQT_PKGS}"
+    install_packages ${DE_LXQT_PKGS}
     enable_service "sddm.service"
     success "LXQt installation complete. Please reboot."
     read -p "Press Enter to continue..."
@@ -304,7 +304,7 @@ install_lxqt() {
 
 install_i3() {
     info "Installing i3 Window Manager..."
-    install_packages "${WM_I3_PKGS}"
+    install_packages ${WM_I3_PKGS}
     backup_config "$HOME/.config/i3"
     info "Cloning basic i3 config from github.com/karlstav/i3-config..."
     git clone --depth 1 "https://github.com/karlstav/i3-config.git" "$HOME/.config/i3"
@@ -314,7 +314,7 @@ install_i3() {
 
 install_sway() {
     info "Installing Sway (Wayland) Window Manager..."
-    install_packages "${WM_SWAY_PKGS}"
+    install_packages ${WM_SWAY_PKGS}
     backup_config "$HOME/.config/sway"
     info "Cloning basic sway config..."
     git clone --depth 1 "https://github.com/Alexays/dotfiles-i3" "$HOME/.config/sway-temp"
@@ -327,7 +327,7 @@ install_sway() {
 
 install_awesomewm() {
     info "Installing AwesomeWM Window Manager..."
-    install_packages "${WM_AWESOME_PKGS}"
+    install_packages ${WM_AWESOME_PKGS}
     backup_config "$HOME/.config/awesome"
     info "Copying default awesome config..."
     mkdir -p "$HOME/.config/awesome"
